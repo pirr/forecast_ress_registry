@@ -1,0 +1,26 @@
+replaceable,replacement,function,description
+\s\s+, ,regex_sub,
+\s*-\s*,,regex_sub,
+(\w)(\d),\1 \2,regex_sub,
+(\d)(\w),\1 \2,regex_sub,
+([А-я])(\s?[A-z]),\1,regex_sub,
+перспектив\w+,,regex_sub,
+площадь,,replace,
+п.п.,,replace,
+п. п.,,replace,
+р.п.,,replace,
+р. п.,,replace,
+рудный,,replace,
+проявление,,replace,
+участок,,replace,
+рудное поле,,replace,
+прогнозная,,replace,
+рудное поле,,replace,
+потенциал\w+,,regex_sub,потенциал
+узел,,replace,
+район,,replace,
+\bуч.|уч-к|уч-ток|у-ток|участок,,regex_sub,участок
+\bм.|месторождени[еяю]|м-е,,regex_sub,месторождение
+\bр.|рек[аие],,regex_sub,река
+\bруч\.|\bруч\b|ручей,,regex_sub,ручей
+\bпроявл.|проявление,,regex_sub,проявление
