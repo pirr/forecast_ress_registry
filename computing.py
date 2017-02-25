@@ -138,7 +138,7 @@ class GroupComputing:
         attrs_rows = izip(self.df.index.values.tolist(), self.df[['analysis_name', 'group_pi']].values.tolist())
         combo = combinations(attrs_rows, r=2)
         p = Pool(self.processes)
-        name_ratio = 80
+        name_ratio = 90
         groups = p.map(partial(_get_attribute_groups, name_ratio), combo)
         p.close()
         p.join()
