@@ -177,9 +177,9 @@ class GroupComputing:
         return nx.connected_components(G)
 
     @property
-    def compute_polygon_point_groups(self):
+    def compute_polygon_point_groups(self, buffer=0.4):
         polygons = self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']), '_geometry_']
-        points = self.df.loc[self.df['_geom_type_'] == 'POINT', ['lon', 'lat']]
+        points = self.df.loc[self.df['_geom_type_'] == 'POINT', ['lon', 'lat', 'coord_checked']]
         groups = []
         for point_row in points.iterrows():
             point = ogr.Geometry(ogr.wkbPoint)
@@ -187,9 +187,17 @@ class GroupComputing:
             if point_row[1]['coord_checked'] = 'err':
                 buffer
             for poly in polygons.iteritems():
-                if point.Within(poly[1]):
+                if point_row[1]['coord_checked'] == 'err':
+                    buf = point.Buffer(buffer)
+                    if not any([
+                        poly[1].Intersection(buf),
+                        buf.Within(poly[1]),
+                    ]):
+                        continue
+                elif not point.Within(poly[1]):
+                        continue
                     # print 'point within poly', (point_row[0], poly[0])
-                    groups.append([point_row[0], poly[0]])
+                groups.append([point_row[0], poly[0]])
         G = self.get_groups_graph(np.array(groups))
         return nx.connected_components(G)
 
