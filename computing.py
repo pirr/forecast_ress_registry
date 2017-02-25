@@ -184,8 +184,6 @@ class GroupComputing:
         for point_row in points.iterrows():
             point = ogr.Geometry(ogr.wkbPoint)
             point.AddPoint(point_row[1]['lon'], point_row[1]['lat'])
-            if point_row[1]['coord_checked'] = 'err':
-                buffer
             for poly in polygons.iteritems():
                 if point_row[1]['coord_checked'] == 'err':
                     buf = point.Buffer(buffer)
