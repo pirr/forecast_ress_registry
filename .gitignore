@@ -6,3 +6,4 @@ groups.csv
 registry_grouper.sublime-project
 registry_grouper.sublime-workspace
 /.idea/
+*.pyc
