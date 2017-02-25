@@ -6,6 +6,8 @@ Created on Wed Feb 15 10:19:57 2017
 @author: aleksejsmaga
 """
 
+import sys
+import platform
 import string
 from datetime import datetime
 from itertools import combinations, product, izip
@@ -18,9 +20,9 @@ from fuzzywuzzy import fuzz
 from sklearn.neighbors import DistanceMetric
 from multiprocessing import Pool
 
-import sys;
+if platform.system() == 'Darwin':
+    sys.path.insert(0, '/Library/Frameworks/GDAL.framework/Versions/2.1/Python/2.7/site-packages')
 
-sys.path.insert(0, '/Library/Frameworks/GDAL.framework/Versions/2.1/Python/2.7/site-packages')
 from osgeo import ogr
 
 
