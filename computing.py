@@ -49,11 +49,18 @@ class GroupComputing:
         self.point_indxs = self.__get_point_indxs
         self.computed_point_matrix = self.get_compute_point_matrix
 
-
     def __clear_analysis_names(self):
+        self.df['analysis_name'] = self.df[
+            'analysis_name'].str.replace('[%s]' % string.punctuation, ' ')
         for p in self.name_pattern.as_matrix():
             self.df['analysis_name'] = self.df[
                 'analysis_name'].str.replace(p[0], p[1])
+        self.df['analysis_name'] = self.df[
+            'analysis_name'].str.strip()
+        self.df['analysis_name_list'] = self.df[
+                'analysis_name'].str.split(' ')
+        self.df['analysis_name'] = self.df[
+            'analysis_name_list'].apply(lambda words: ' '.join(sorted(words)))
 
     @property
     def __get_point_radian_matrix(self):
