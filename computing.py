@@ -40,7 +40,7 @@ class GroupComputing:
         self.lat_field = kwargs.get('lat_field', 'lat')
         self.min_dist = kwargs.get('min_dist', 100)
         self.max_dist = kwargs.get('max_dist', 5000)
-        self.err_dist = kwargs.get('err_dist', 25000)
+        self.err_dist = kwargs.get('err_dist', 50000)
         self.geometry_field = kwargs.get('geometry', '_geometry_')
         self.df[self.lon_field] = self.df[self.lon_field].astype(float)
         self.df[self.lat_field] = self.df[self.lat_field].astype(float)
@@ -145,7 +145,7 @@ class GroupComputing:
         attrs_rows = izip(self.df.index.values.tolist(), self.df[['analysis_name', 'group_pi']].values.tolist())
         combo = combinations(attrs_rows, r=2)
         p = Pool(self.processes)
-        name_ratio = 90
+        name_ratio = 84
         groups = p.map(partial(_get_attribute_groups, name_ratio), combo)
         p.close()
         p.join()
@@ -306,7 +306,7 @@ def _get_attribute_groups(name_ratio, attrs):
     name_2 = attrs[1][1][0]
     gr_pi1 = attrs[0][1][1]
     gr_pi2 = attrs[1][1][1]
-    if fuzz.partial_ratio(name_1, name_2) >= name_ratio and (gr_pi1==gr_pi2):
+    if (fuzz.partial_ratio(name_1, name_2) >= name_ratio) and (gr_pi1==gr_pi2):
         return attrs[0][0], attrs[1][0]
 
 
