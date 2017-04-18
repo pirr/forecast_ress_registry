@@ -18,9 +18,7 @@ from fuzzywuzzy import fuzz
 from sklearn.neighbors import DistanceMetric
 from multiprocessing import Pool
 
-import sys;
-
-sys.path.insert(0, '/Library/Frameworks/GDAL.framework/Versions/2.1/Python/2.7/site-packages')
+import sys; sys.path.insert(0, '/Library/Frameworks/GDAL.framework/Versions/2.1/Python/2.7/site-packages')
 from osgeo import ogr
 
 
@@ -37,8 +35,8 @@ class GroupComputing:
         self.lon_field = kwargs.get('lon_field', 'lon')
         self.lat_field = kwargs.get('lat_field', 'lat')
         self.min_dist = kwargs.get('min_dist', 100)
-        self.max_dist = kwargs.get('max_dist', 5000)
-        self.err_dist = kwargs.get('err_dist', 25000)
+        self.max_dist = kwargs.get('max_dist', 25000)
+        self.err_dist = kwargs.get('err_dist', 500000)
         self.geometry_field = kwargs.get('geometry', '_geometry_')
         self.df[self.lon_field] = self.df[self.lon_field].astype(float)
         self.df[self.lat_field] = self.df[self.lat_field].astype(float)
@@ -46,6 +44,10 @@ class GroupComputing:
         self.__clear_analysis_names()
         self.point_indxs = self.__get_point_indxs
         self.computed_point_matrix = self.get_compute_point_matrix
+        self.buffer_dist = kwargs.get('buffer_dist', 500000)
+        self.name_ratio = kwargs.get('name_ratio', 80)
+
+        self.df['group_pi'] = self.df['isnedra_pi']
 
 
     def __clear_analysis_names(self):
@@ -71,6 +73,10 @@ class GroupComputing:
         for i in xrange(len(D)):
             D[i, :i + 1] = np.nan
         return D * 6372795
+
+    @property
+    def save_computed_point_matrix_to_file(self):
+        self.computed_point_matrix
 
     @property
     def get_lower_dist_groups(self):
@@ -136,7 +142,7 @@ class GroupComputing:
         attrs_rows = izip(self.df.index.values.tolist(), self.df[['analysis_name', 'group_pi']].values.tolist())
         combo = combinations(attrs_rows, r=2)
         p = Pool(self.processes)
-        name_ratio = 80
+        name_ratio = self.name_ratio
         groups = p.map(partial(_get_attribute_groups, name_ratio), combo)
         p.close()
         p.join()
@@ -177,17 +183,25 @@ class GroupComputing:
     @property
     def compute_polygon_point_groups(self):
         polygons = self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']), '_geometry_']
-        points = self.df.loc[self.df['_geom_type_'] == 'POINT', ['lon', 'lat']]
+        points = self.df.loc[self.df['_geom_type_'] == 'POINT', ['lon', 'lat', 'coord_checked']]
         groups = []
         for point_row in points.iterrows():
             point = ogr.Geometry(ogr.wkbPoint)
             point.AddPoint(point_row[1]['lon'], point_row[1]['lat'])
-            if point_row[1]['coord_checked'] = 'err':
-                buffer
+
             for poly in polygons.iteritems():
-                if point.Within(poly[1]):
-                    # print 'point within poly', (point_row[0], poly[0])
-                    groups.append([point_row[0], poly[0]])
+                if point_row[1]['coord_checked'] == 'err':
+                    buffer = point.Buffer(self.buffer_dist)
+                    if any([
+                        buffer.Intersection(poly[1]),
+                        buffer.Within(poly[1]),
+                        poly[1].Within(buffer)
+                    ]):
+                        groups.append([point_row[0], poly[0]])
+                else:
+                    if point.Within(poly[1]):
+                        # print 'point within poly', (point_row[0], poly[0])
+                        groups.append([point_row[0], poly[0]])
         G = self.get_groups_graph(np.array(groups))
         return nx.connected_components(G)
 
