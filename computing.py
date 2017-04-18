@@ -36,7 +36,7 @@ class GroupComputing:
         self.lat_field = kwargs.get('lat_field', 'lat')
         self.min_dist = kwargs.get('min_dist', 100)
         self.max_dist = kwargs.get('max_dist', 25000)
-        self.err_dist = kwargs.get('err_dist', 500000)
+        self.err_dist = kwargs.get('err_dist', 50000)
         self.geometry_field = kwargs.get('geometry', '_geometry_')
         self.df[self.lon_field] = self.df[self.lon_field].astype(float)
         self.df[self.lat_field] = self.df[self.lat_field].astype(float)
@@ -44,7 +44,7 @@ class GroupComputing:
         self.__clear_analysis_names()
         self.point_indxs = self.__get_point_indxs
         self.computed_point_matrix = self.get_compute_point_matrix
-        self.buffer_dist = kwargs.get('buffer_dist', 500000)
+        self.buffer_dist = kwargs.get('buffer_dist', 50000)
         self.name_ratio = kwargs.get('name_ratio', 80)
 
         self.df['group_pi'] = self.df['isnedra_pi']
@@ -73,10 +73,6 @@ class GroupComputing:
         for i in xrange(len(D)):
             D[i, :i + 1] = np.nan
         return D * 6372795
-
-    @property
-    def save_computed_point_matrix_to_file(self):
-        self.computed_point_matrix
 
     @property
     def get_lower_dist_groups(self):
@@ -148,7 +144,7 @@ class GroupComputing:
         p.join()
         groups = [g for g in groups if g is not None]
         G = self.get_groups_graph(np.array(groups))
-        return nx.connected_components(G)
+        return list(nx.connected_components(G))
 
     @property
     def get_polygon_by_wkt_groups(self):
@@ -209,7 +205,7 @@ class GroupComputing:
     def get_groups_graph(edges):
         G = nx.Graph()
         if edges.size:
-            nodes = np.union1d(edges[:, 0], edges[:, 1])
+            nodes = np.unique(edges)
             G.add_nodes_from(nodes)
             G.add_edges_from(edges)
         return G
