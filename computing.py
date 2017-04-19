@@ -49,7 +49,6 @@ class GroupComputing:
 
         self.df['group_pi'] = self.df['isnedra_pi']
 
-
     def __clear_analysis_names(self):
         for p in self.name_pattern.as_matrix():
             self.df['analysis_name'] = self.df[

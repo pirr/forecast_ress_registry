@@ -13,7 +13,7 @@ from registry import RegistryFormatter, REGISTRY_COLUMNS
 from merge import MergedXlsShpDf
 from computing import GroupComputing
 
-shp_dir = ur'/Users/aleksejsmaga/repository/notebook/cnigri_gis'
+shp_dir = ur'/Users/aleksejsmaga/repository/notebook/forecast_ress_gis'
 shp_registry = ShpRegistry(shp_dir=shp_dir)
 df_shp_registry = shp_registry.concat_df_shp(transform_prj=True)
 
@@ -24,8 +24,8 @@ df_shp_registry['geom_id'] = shp_registry.concat_df_column_ids(df_shp_registry['
                                                                df_shp_registry['nomstr_1'],
                                                                df_shp_registry['N_reestr_s'])
 
-df = pd.read_excel(u'//Users//aleksejsmaga//repository//notebook//reestr_4субъекта_2.xls')
-registry_fmt = RegistryFormatter(df, REGISTRY_COLUMNS)
+df = pd.read_excel(u'//Users//aleksejsmaga//temp//reestr-groups-clear.xls')
+registry_fmt = RegistryFormatter(df, registry_cols_dict=REGISTRY_COLUMNS)
 registry_fmt.format()
 xls_registry = registry_fmt.registry
 
@@ -42,7 +42,7 @@ group_comp = GroupComputing(mdf)
 # print group_comp_norm_coord.analysis_name_matrix
 
 group_comp.set_groups(err_coord=True)
-writer = pd.ExcelWriter('group_3_2.xls')
+writer = pd.ExcelWriter('group_3_10.xls')
 group_comp.df.to_excel(writer, 'group')
 writer.save()
 writer.close()

@@ -103,9 +103,7 @@ class RegistryFormatter:
     # проверка наличия ошибок
     def check_errors(self):
         if self.errors:
-            mess = message_former_from(self.errors)
-            flash_mess(mess)
-            raise RegistryExc(mess)
+            raise RegistryExc(self.errors)
 
     # удаление переносов и других непробельных символов в названии колонок
     # реестра
@@ -125,7 +123,7 @@ class RegistryFormatter:
 
     # обновление названий колонок для БД
     def update_column_names_for_db(self):
-        self.registry.columns = [self.cols[c] for c in self.registry.columns]
+        self.registry.columns = list(self.cols.values())
 
     # округление чисел с плавающей точкой
     def fix_float(self):
@@ -183,13 +181,12 @@ class RegistryFormatter:
         self.columns_strip()
         self.check_columns()
         self.check_errors()
-#         self.fix_float()
+        self.fix_float()
         self.update_column_names_for_db()
         self.prep_n_poly_column
         self.prep_pi_column
-        self.__merg_pi
-        self.check_group_pi
-#         self.registry.fillna('', inplace=True)
+        # self.__merg_pi
+        # self.check_group_pi
         self.prepare_coord()
         if not grand_taxons:
             self.registry = self.registry[~self.registry['geol_type_obj'].isin([u'кт', u'КТ', u'KT', u'kt'])]
