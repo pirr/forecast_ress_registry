@@ -44,15 +44,20 @@ class ShpRegistry:
     def __get_dataframe_from_shp(self, shp_file_path):
         shp_file = self.driver.Open(shp_file_path)
         dbf_filename = shp_file_path[:-4] + '.dbf'
+        dbf_file = Dbf5(dbf_filename, codec='cp1251')
         try:
-            dbf_file = Dbf5(dbf_filename, codec='utf-8')
-            df = dbf_file.to_dataframe()
-        except UnicodeDecodeError:
             dbf_file = Dbf5(dbf_filename, codec='cp1251')
-            df = dbf_file.to_dataframe()
+        except UnicodeDecodeError:
+            dbf_file = Dbf5(dbf_filename, codec='utf-8')
         except Exception as e:
             raise ShpRegistryExc('Problem with data in file:', dbf_filename, e)
-        
+        # df = dbf_file.to_dataframe()
+        # try:
+        print dbf_filename
+        df = dbf_file.to_dataframe()
+        # except ValueError as e:
+        #     raise ShpRegistryExc('ValueError:', e, dbf_filename)
+
         try:
             daLayer = shp_file.GetLayer()
             wkt_geom = [feature.geometry().ExportToWkt() for feature in daLayer]

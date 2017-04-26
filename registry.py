@@ -163,7 +163,7 @@ class RegistryFormatter:
 
     @property
     def prep_pi_column(self):
-        self.registry['pi'] = self.registry['pi'].str.lower()
+        self.registry['norm_pi'] = self.registry['norm_pi'].str.lower()
 
     @property
     def check_group_pi(self):
@@ -185,8 +185,8 @@ class RegistryFormatter:
         self.update_column_names_for_db()
         self.prep_n_poly_column
         self.prep_pi_column
-        # self.__merg_pi
-        # self.check_group_pi
+        self.__merg_pi
+        self.check_group_pi
         self.prepare_coord()
         if not grand_taxons:
             self.registry = self.registry[~self.registry['geol_type_obj'].isin([u'кт', u'КТ', u'KT', u'kt'])]
