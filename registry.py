@@ -54,8 +54,8 @@ REGISTRY_COLUMNS = OrderedDict([(u'№ строки', 'N'),
                                 (u'Номер', 'probe_doc_num'),
                                 (u'Дата', 'probe_doc_date'),
                                 (u'Орган апробации', 'probe_doc_organ'),
-                                (u'№ в таблице координат для полигонов', 'N_poly_table'),
                                 (u'Территория органа апробации', 'probe_organ_subj'),
+                                (u'№ в таблице координат для полигонов', 'N_poly_table'),
                                 (u'Вид координат (Т-точка, П-полигон)', 'coord_type'),
                                 (u'Площадь, км2', 'area'),
                                 (u'Координата центра X', 'lon'),
@@ -184,9 +184,9 @@ class RegistryFormatter:
         self.fix_float()
         self.update_column_names_for_db()
         self.prep_n_poly_column
-        self.prep_pi_column
-        self.__merg_pi
-        self.check_group_pi
+        # self.prep_pi_column
+        # self.__merg_pi
+        # self.check_group_pi
         self.prepare_coord()
         if not grand_taxons:
             self.registry = self.registry[~self.registry['geol_type_obj'].isin([u'кт', u'КТ', u'KT', u'kt'])]
