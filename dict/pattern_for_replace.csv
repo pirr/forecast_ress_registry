@@ -15,6 +15,8 @@ replaceable;replacement;function;description
 узел;;replace;
 район;;replace;
 россыпь;;replace;
+(\w*\.)(\w+);\g<1> \g<2>;regex_sub;кл.Завья – кл. Завья
+\bоз\.|\bоз[её]р[оа]\b;;regex_sub;озеро
 \bшахт[аы];;regex_sub;шахта
 \bразрез;;regex_sub;разрез
 \bпол[ея];;regex_sub;поле
@@ -30,4 +32,3 @@ replaceable;replacement;function;description
 (\w)(\d);\g<1> \g<2>;regex_sub;
 (\d)(\w);\g<1> \g<2>;regex_sub;
 ([А-я])(\s?[A-z]);\g<1>;regex_sub;
-(\w*\.)(\w+);\g<1> \g<2>;regex_sub;кл.Завья – кл. Завья

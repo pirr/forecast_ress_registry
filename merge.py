@@ -16,7 +16,10 @@ class MergedXlsShpDf:
 
     @staticmethod
     def __get_merged_xls_with_shp_data(xls_df, shp_df):
-        return pd.merge(xls_df, shp_df, left_on='N_poly_table', right_on='geom_id', how='left').drop_duplicates('N')
+        merged = pd.merge(xls_df, shp_df, left_on='N_poly_table', right_on='geom_id', how='left')
+        # merged = merged[~pd.isnull(merged['actual'])]
+        # return merged[(~merged.duplicated('N', )) | (merged['N'].isnull())]
+        return merged
 
 
     def paste_xy_for_none_shp_obj(self):

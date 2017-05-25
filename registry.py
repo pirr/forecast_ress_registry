@@ -14,10 +14,10 @@ REGISTRY_COLUMNS = OrderedDict([(u'№ строки', 'N'),
                                 (u'№ изменений', 'N_change'),
                                 (u'Операция внесения (добавление, изменение, удаление)',
                                  'change_type'),
-                                (u'№ объекта', 'N_obj'),
+                                (u'№ объекта', 'N_objectX'),
                                 (u'Признак комплексного', 'complex'),
                                 (u'Вид документа регистрации1)', 'doc_type'),
-                                (u'Наличие ГКМ паспорта в группе', 'obj_with_gkm'),
+                                (u'Наличие паспорта ГКМ', 'obj_with_gkm'),
                                 (u'Орган регистрации (ТФИ, РГФ, ВСЕГЕИ, ЦНИГРИ, Роснедра, Минприроды, ГСЭ)',
                                  'organ_regs'),
                                 (u'Номер документа', 'doc_num'),
@@ -137,7 +137,10 @@ class RegistryFormatter:
         normal_coord_list = []
         for c in coord:
             coord_is_normal = True
-            _, str_coord_decim = str(c).split('.')
+            try:
+                _, str_coord_decim = str(c).split('.')
+            except ValueError:
+                return u'err'
             len_str_coord_decim = len(str_coord_decim)
             if len_str_coord_decim < 3:
                 coord_is_normal = False
@@ -189,4 +192,6 @@ class RegistryFormatter:
         # self.check_group_pi
         self.prepare_coord()
         if not grand_taxons:
-            self.registry = self.registry[~self.registry['geol_type_obj'].isin([u'кт', u'КТ', u'KT', u'kt'])]
+            self.registry = self.registry[~self.registry['geol_type_obj'].str.lower().isin([u'кт', u'КТ', u'KT', u'kt',
+                                                                                            u'мз', u'пгхо', u'пп',
+                                                                                            u'рз', u'рп', u'рр', u'ру'])]

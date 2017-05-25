@@ -68,7 +68,7 @@ def get_predict_scores(y_true, y_pred):
 
     return predict_scores
 
-shp_dir = ur'/Users/aleksejsmaga/repository/notebook/forecast_ress_gis'
+shp_dir = ur'data//shps//'
 shp_registry = ShpRegistry(shp_dir=shp_dir)
 df_shp_registry = shp_registry.concat_df_shp(transform_prj=True)
 
@@ -76,25 +76,32 @@ df_shp_registry['point_xy'] = np.nan
 df_shp_registry['point_xy'] = df_shp_registry['point_xy'].astype(object)
 df_shp_registry = shp_registry.get_point_xy(df_shp_registry)
 df_shp_registry['geom_id'] = shp_registry.concat_df_column_ids(
-                                                               # df_shp_registry['N_TKOORD'],
-                                                               df_shp_registry['nomstr'],
-                                                               df_shp_registry['cnigri_id'],
-                                                               df_shp_registry['N_reestr_s']
+                                                               df_shp_registry['N_TKOORD'],
+                                                               df_shp_registry['NOM_PU'],
+                                                               df_shp_registry['priv'],
+                                                               df_shp_registry['ID_PRIV'],
+                                                               df_shp_registry['regid'],
+                                                               # df_shp_registry['nomstr'],
+                                                               # df_shp_registry['cnigri_id'],
+                                                               # df_shp_registry['N_reestr_s']
                                                                )
 
+df_shp_registry = df_shp_registry[['point_xy', 'geom_id', '_prj_', '_geometry_', '_wkt_', '_geom_type_']]
 # df_shp_registry['N_TKOORD'],
 # df_shp_registry['nomstr']
 # df_shp_registry['cnigri_id']
 # df_shp_registry['N_reestr_s']
 
-df = pd.read_excel(u'data//reestr_kem-clear.xls', skiprows=1)
+df = pd.read_excel(u'data//reestr_ALK.xls', skiprows=1)
 registry_fmt = RegistryFormatter(df, registry_cols_dict=REGISTRY_COLUMNS)
-registry_fmt.format()
+registry_fmt.format(grand_taxons=False)
 xls_registry = registry_fmt.registry
 
 merged_df = MergedXlsShpDf(xls_registry, df_shp_registry)
 merged_df.paste_xy_for_none_shp_obj()
 mdf = merged_df.df
+# mdf.to_pickle('full_ak-registry.pk')
+
 merge_df_norm_coord = mdf[mdf['coord_checked'] == 'ok']
 merge_df_err_coord = mdf
 
@@ -144,10 +151,10 @@ space4grouping = {
     'coeff_for_diff_doc_type': hp.quniform('coeff_for_diff_doc_type', 0.01, 0.2, 0.01),
 }
 
-best = {'max_similar_coef': 0.2,
+best = {'max_similar_coef': 0.65,
         'name_ratio': 90.0,
-        'dist_penalty_coef': 200.0,
-        'coeff_for_diff_doc_type': 0.1}
+        'dist_penalty_coef': 250.0,
+        'coeff_for_diff_doc_type': 0.3}
 # trials = Trials()
 # best = fmin(foo, space4grouping, algo=tpe.suggest, max_evals=100, trials=trials)
 #
@@ -156,35 +163,40 @@ best = {'max_similar_coef': 0.2,
 #
 group_comp = GroupComputing(mdf, **best)
 group_comp.set_groups(err_coord=True)
-m = group_comp.df[['N', 'N_obj']].sort_values('N')
-copy_m = m.copy()
+writer = pd.ExcelWriter('data//2405-1-alk-full.xls')
+group_comp.df.to_excel(writer, 'group')
+writer.save()
+writer.close()
+# m = group_comp.df[['N', 'N_obj']]
+# m.to_csv('data/2305-1-alk.csv', sep=';')
+# copy_m = m.copy()
 
-n_obj_dict = {}
-obj_new_num = 0
-for n_row, n_obj in m.as_matrix():
-    if pd.isnull(n_obj):
-        obj_num = obj_new_num
-        obj_new_num += 1
-    elif n_obj in n_obj_dict:
-        obj_num = n_obj_dict[n_obj]
-    else:
-        obj_num = obj_new_num
-        n_obj_dict[n_obj] = obj_new_num
-        obj_new_num += 1
-    copy_m.loc[copy_m['N'] == n_row, 'N_obj'] = obj_num
-
-y_pred = copy_m['N_obj'].as_matrix().ravel()
-y_true = pd.read_csv('data//y_kem.csv', header=None).as_matrix().ravel()
-predict_scores = get_predict_scores(y_true, y_pred)
-mean_score = {k + '_mean': float(sum(v)) / float(len(v)) for k, v in predict_scores.items()}
-err = sum(predict_scores['err'])
-tp = sum(predict_scores['tp'])
-print err, tp, (tp / (err + tp))
+# n_obj_dict = {}
+# obj_new_num = 0
+# for n_row, n_obj in m.as_matrix():
+#     if pd.isnull(n_obj):
+#         obj_num = obj_new_num
+#         obj_new_num += 1
+#     elif n_obj in n_obj_dict:
+#         obj_num = n_obj_dict[n_obj]
+#     else:
+#         obj_num = obj_new_num
+#         n_obj_dict[n_obj] = obj_new_num
+#         obj_new_num += 1
+#     copy_m.loc[copy_m['N'] == n_row, 'N_obj'] = obj_num
+#
+# y_pred = copy_m['N_obj'].as_matrix().ravel()
+# y_true = pd.read_csv('data//y_kem.csv', header=None).as_matrix().ravel()
+# predict_scores = get_predict_scores(y_true, y_pred)
+# mean_score = {k + '_mean': float(sum(v)) / float(len(v)) for k, v in predict_scores.items()}
+# err = sum(predict_scores['err'])
+# tp = sum(predict_scores['tp'])
+# print err, tp, (tp / (err + tp))
 # writer = pd.ExcelWriter('data//group_irk.xls')
 # group_comp.df.to_excel(writer, 'group')
 # writer.save()
 # writer.close()
-copy_m.to_csv('data//pred_x.csv', sep=';')
+# copy_m.to_csv('data//pred_x.csv', sep=';')
 
 # print 'groups', group_comp_norm_coord.df
 # group_comp_norm_coord.get_analysis_name_matrix
