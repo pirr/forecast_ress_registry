@@ -141,18 +141,6 @@ class GroupComputing:
         return num + 1
 
     @property
-    def get_group_pi_groups(self):
-        group_pi_rows = izip(self.df.index.values.tolist(), self.df['group_pi'].values.tolist())
-        combo = combinations(group_pi_rows, r=2)
-        p = Pool(self.processes)
-        groups = p.map(_compare_group_pi, combo)
-        p.close()
-        p.join()
-        groups = [g for g in groups if g is not None]
-        G = self.get_groups_graph(np.array(groups))
-        return nx.connected_components(G)
-
-    @property
     def get_attribute_groups(self):
         attrs_rows = izip(self.df.index.values.tolist(),
                           self.df[['analysis_name', 'group_pi', 'norm_pi']].values.tolist())
@@ -187,7 +175,6 @@ class GroupComputing:
         G = self.get_groups_graph(np.array(groups))
         return nx.connected_components(G)
 
-    # noinspection SpellCheckingInspection
     @property
     def get_polygon_iters_witin_groups(self):
         polygons_df = self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']),
@@ -376,13 +363,6 @@ def _get_attrs_ratio(name_ratio, attrs):
 
     if pr >= name_ratio and any([(gr_pi1 == gr_pi2), (n_pi1 == n_pi2)]):
         return attrs[0][0], attrs[1][0]
-
-
-def _compare_group_pi(groups):
-    group_pi_1 = groups[0][1]
-    group_pi_2 = groups[1][1]
-    if group_pi_1 == group_pi_2:
-        return groups[0][0], groups[1][0]
 
 
 def _compare_polygons_wkt(polygons):
