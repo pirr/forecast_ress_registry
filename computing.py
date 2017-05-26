@@ -154,15 +154,22 @@ class GroupComputing:
 
     @property
     def get_attribute_groups(self):
-        attrs_rows = izip(self.df.index.values.tolist(), self.df[['analysis_name', 'group_pi', 'norm_pi']].values.tolist())
+        attrs_rows = izip(self.df.index.values.tolist(),
+                          self.df[['analysis_name', 'group_pi', 'norm_pi']].values.tolist())
         combo = combinations(attrs_rows, r=2)
         p = Pool(self.processes)
         name_ratio = self.name_ratio
-        groups = p.map(partial(_get_attribute_groups, name_ratio), combo)
+        groups = p.map(partial(_get_attrs_ratio, name_ratio), combo)
         p.close()
         p.join()
         groups = [g for g in groups if g is not None]
         G = self.get_groups_graph(np.array(groups))
+        # for comp in nx.connected_components(G):
+        #     avg_weight = []
+        # G = self.get_groups_graph(np.array(groups))
+        # groups_df = pd.DataFrame(groups)
+        # groups_df.to_csv('data/name_ratio.csv')
+
         return nx.connected_components(G)
 
     @property
@@ -180,6 +187,7 @@ class GroupComputing:
         G = self.get_groups_graph(np.array(groups))
         return nx.connected_components(G)
 
+    # noinspection SpellCheckingInspection
     @property
     def get_polygon_iters_witin_groups(self):
         polygons_df = self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']),
@@ -209,18 +217,6 @@ class GroupComputing:
                     groups.append([point_row[0], poly[0]])
                 elif point.Distance(poly[1]) <= 0.01:
                     groups.append([point_row[0], poly[0]])
-                # if point_row[1]['coord_checked'] == 'err':
-                #     buffer = point.Buffer(self.buffer_dist)
-                #     if any([
-                #         buffer.Intersection(poly[1]),
-                #         buffer.Within(poly[1]),
-                #         poly[1].Within(buffer)
-                #     ]):
-                #         groups.append([point_row[0], poly[0]])
-                # else:
-                #     if point.Within(poly[1]):
-                #         # print 'point within poly', (point_row[0], poly[0])
-                #         groups.append([point_row[0], poly[0]])
         G = self.get_groups_graph(np.array(groups))
         return nx.connected_components(G)
 
@@ -267,28 +263,22 @@ class GroupComputing:
         attr_groups = list(self.get_attribute_groups)
         print 'creating similar point groups'
         similar_point_groups = list(self.get_similar_point_groups())
-        # print 'creating between distance groups'
-        # between_dist_groups = self.get_merged_groups(self.get_between_dist_groups, attr_groups)
-        # between_err_coord_dist_groups = []
-        # if err_coord:
-        #     print 'creating err coord between distance groups'
-        #     between_err_coord_dist_groups = self.get_merged_groups(self.get_between_err_coord_dist_groups, attr_groups)
         print 'creating polygon groups'
-        # polygon_groups = self.get_merged_groups(self.get_polygon_iters_witin_groups, attr_groups)
+        polygon_groups = self.get_merged_groups(self.get_polygon_iters_witin_groups, attr_groups)
         print 'creating lower distance groups'
         lower_dist_groups = self.get_lower_dist_groups
         print 'creating polygon by wkt groups'
         polygon_by_wkt_groups = list(self.get_polygon_by_wkt_groups)
         print 'creating points within polygons groups'
-        # polygon_point_groups = self.get_merged_groups(self.compute_polygon_point_groups, attr_groups)
+        polygon_point_groups = self.get_merged_groups(self.compute_polygon_point_groups, attr_groups)
         return self.get_merged_lists(
                                      # between_dist_groups,
                                      # between_err_coord_dist_groups,
                                      similar_point_groups,
-                                     # polygon_groups,
+                                     polygon_groups,
                                      lower_dist_groups,
                                      polygon_by_wkt_groups,
-                                     # polygon_point_groups
+                                     polygon_point_groups
                                      )
 
     def set_groups(self, err_coord=False):
@@ -371,10 +361,7 @@ def _compare_polygons_inter_within(polygons):
         return polygons[0][0], polygons[1][0]
 
 
-def _get_attribute_groups(name_ratio, attrs):
-    # def name_middle_ratio(name_1, name_2):
-    #     name_1_set = set(name_1.split(' '))
-    #     name_2_set = set(name_2.split(' '))
+def _get_attrs_ratio(name_ratio, attrs):
     name_1 = attrs[0][1][0]
     name_2 = attrs[1][1][0]
     gr_pi1 = attrs[0][1][1]
@@ -382,7 +369,12 @@ def _get_attribute_groups(name_ratio, attrs):
     n_pi1 = attrs[0][1][2]
     n_pi2 = attrs[1][1][2]
 
-    if fuzz.partial_ratio(name_1, name_2) >= name_ratio and any([(gr_pi1 == gr_pi2), (n_pi1 == n_pi2)]):
+    if len(name_1.split(' ')) + len(name_2.split(' ')) <= 2:
+        pr = fuzz.ratio(name_1, name_2)
+    else:
+        pr = fuzz.partial_ratio(name_1, name_2)
+
+    if pr >= name_ratio and any([(gr_pi1 == gr_pi2), (n_pi1 == n_pi2)]):
         return attrs[0][0], attrs[1][0]
 
 
