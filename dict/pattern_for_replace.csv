@@ -1,34 +1,31 @@
 replaceable;replacement;function;description
-перспектив\w+;;regex_sub;
-площадь;;replace;
-п.п.;;replace;
-п. п.;;replace;
-р.п.;;replace;
-р. п.;;replace;
-рудный;;replace;
-проявление;;replace;
-участок;;replace;
-рудное поле;;replace;
-прогнозная;;replace;
-рудное поле;;replace;
-потенциал\w+;;regex_sub;потенциал
-узел;;replace;
-район;;replace;
-россыпь;;replace;
-(\w*\.)(\w+);\g<1> \g<2>;regex_sub;кл.Завья – кл. Завья
-\bоз\.|\bоз[её]р[оа]\b;;regex_sub;озеро
-\bшахт[аы];;regex_sub;шахта
-\bразрез;;regex_sub;разрез
-\bпол[ея];;regex_sub;поле
-\bуч.|уч-к|уч-ток|у-ток|участок;;regex_sub;участок
-\bм\.|месторождени[еяю]|\bм-е;;regex_sub;месторождение
-\bр\.|\bрек[аие];;regex_sub;река
-\bруч\.|\bруч\b|ручей;;regex_sub;ручей
-\bпроявл\.|проявление;;regex_sub;проявление
+\bперспектив\w+;;regex_sub;
+\bплощадь\b;;replace;
+\bпроявление\b;;replace;
+\bучасток\b;;replace;
+\bпрогнозная\b;;replace;
+\bрудное поле\b;;replace;
+\bпотенциал\w+\b;;regex_sub;потенциал
+\bузел\b;;replace;
+\bрайон\b;;replace;
+\bроссыпь\b;;replace;
+\bоз[её]р[оа]\b;;regex_sub;озеро
+\bшахт[аы]\b;;regex_sub;шахта
+\bразрез\b;;regex_sub;разрез
+\bпол[ея]\b;;regex_sub;поле
+\bуч-к\b|\bуч-ток\b|\bу-ток\b|\bучасток\b;;regex_sub;участок
+\bместорождени[еяю]\b|\bм-е;;regex_sub;месторождение
+\bруч\b|\bручей\b;;regex_sub;ручей
+\bпроявление\b;;replace;проявление
 \bлог\b;;regex_sub;лог
-\bкл\.;;regex_sub;ключ
-\s\s+; ;regex_sub;
-\s*-\s*;;regex_sub;
-(\w)(\d);\g<1> \g<2>;regex_sub;
-(\d)(\w);\g<1> \g<2>;regex_sub;
-([А-я])(\s?[A-z]);\g<1>;regex_sub;
+\bстроительный песок\b;;;
+\bстроительный камень\b;;;
+"(\d+)
+"; \g<1> ;regex_sub;
+([A-z]+); \g<1> ;regex_sub;
+(\w+\.);;regex_sub;
+\bполиметаллический\b;;regex_sub;
+\bруда\b;;regex_sub;
+\bмедно-свинцово-цинковых\b;;;
+\bизвестняки\b;;;
+\bустье\b;;;

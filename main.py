@@ -13,6 +13,7 @@ from registry import RegistryFormatter, REGISTRY_COLUMNS
 from merge import MergedXlsShpDf
 from computing import GroupComputing
 from hyperopt import hp, STATUS_OK, Trials, fmin, tpe
+import time
 
 
 def get_predict_scores(y_true, y_pred):
@@ -91,15 +92,18 @@ df_shp_registry = df_shp_registry[['point_xy', 'geom_id', '_prj_', '_geometry_',
 # df_shp_registry['nomstr']
 # df_shp_registry['cnigri_id']
 # df_shp_registry['N_reestr_s']
-
-df = pd.read_excel(u'data//reestr_ALK.xls', skiprows=1)
+file_path = u'data//kr-kr//'
+df = pd.read_excel(file_path + 'reestr_KRK.xls', skiprows=1)
 registry_fmt = RegistryFormatter(df, registry_cols_dict=REGISTRY_COLUMNS)
 registry_fmt.format(grand_taxons=False)
 xls_registry = registry_fmt.registry
 
+xls_registry = xls_registry[xls_registry['actual'] == u'А']
+
 merged_df = MergedXlsShpDf(xls_registry, df_shp_registry)
-merged_df.paste_xy_for_none_shp_obj()
+merged_df.paste_xy_for_none_shp_obj(poly_to_point=True)
 mdf = merged_df.df
+
 # mdf.to_pickle('full_ak-registry.pk')
 
 merge_df_norm_coord = mdf[mdf['coord_checked'] == 'ok']
@@ -151,8 +155,8 @@ space4grouping = {
     'coeff_for_diff_doc_type': hp.quniform('coeff_for_diff_doc_type', 0.01, 0.2, 0.01),
 }
 
-best = {'max_similar_coef': 0.65,
-        'name_ratio': 90.0,
+best = {'max_similar_coef': 0.75,
+        'name_ratio': 92.0,
         'dist_penalty_coef': 250.0,
         'coeff_for_diff_doc_type': 0.3}
 # trials = Trials()
@@ -162,11 +166,20 @@ best = {'max_similar_coef': 0.65,
 # print best
 #
 group_comp = GroupComputing(mdf, **best)
-group_comp.set_groups(err_coord=True)
-writer = pd.ExcelWriter('data//2405-1-alk-full.xls')
-group_comp.df.to_excel(writer, 'group')
-writer.save()
-writer.close()
+group_comp.set_groups()
+
+csv_file_path = file_path + 'group_results//' + 'krk-' + time.strftime("%m%d-%H_%M_%S") + '.csv'
+
+group_comp.df[['N', 'N_objectX', 'doc_type',
+               'adm_distr', 'list_200', 'name_obj',
+               'analysis_name', 'isnedra_pi', 'norm_pi',
+               'lon', 'lat', '_geom_type_']].to_csv(csv_file_path, encoding='cp1251', sep='\t')
+
+
+# writer = pd.ExcelWriter('data//3105-1-alk-full.xls')
+# group_comp.df.to_excel(writer, 'group')
+# writer.save()
+# writer.close()
 # m = group_comp.df[['N', 'N_obj']]
 # m.to_csv('data/2305-1-alk.csv', sep=';')
 # copy_m = m.copy()

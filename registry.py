@@ -28,8 +28,8 @@ REGISTRY_COLUMNS = OrderedDict([(u'№ строки', 'N'),
                                 (u'Федеральный округ', 'fed_distr'),
                                 (u'Субъект РФ', 'subj_distr'),
                                 (u'Административный район', 'adm_distr'),
-                                (u'Лист м-ба 1000', '1000_map'),
-                                (u'Лист м-ба 200 (араб.)', '200_map'),
+                                (u'Лист м-ба 1000', 'list_1000'),
+                                (u'Лист м-ба 200 (араб.)', 'list_200'),
                                 (u'Вид объекта2)', 'geol_type_obj'),
                                 (u'Название объекта', 'name_obj'),
                                 (u'Фонд недр (Р-распред., НР-нераспред.)', 'fund'),
@@ -103,6 +103,7 @@ class RegistryFormatter:
     # проверка наличия ошибок
     def check_errors(self):
         if self.errors:
+            self.errors = '\n'.join(str(k) + ':' + str(v) for k,v in self.errors.items())
             raise RegistryExc(self.errors)
 
     # удаление переносов и других непробельных символов в названии колонок
@@ -123,7 +124,7 @@ class RegistryFormatter:
 
     # обновление названий колонок для БД
     def update_column_names_for_db(self):
-        self.registry.columns = list(self.cols.values())
+        self.registry.columns = [self.cols.values()]
 
     # округление чисел с плавающей точкой
     def fix_float(self):
@@ -162,7 +163,12 @@ class RegistryFormatter:
 
     @property
     def prep_n_poly_column(self):
-        self.registry['N_poly_table'] = self.registry['N_poly_table'].astype(str)
+        for n in self.registry['N_poly_table']:
+            try:
+                str(n).lower()
+            except UnicodeEncodeError as e:
+                print n
+        self.registry['N_poly_table'] = self.registry['N_poly_table'].astype(str).str.lower()
 
     @property
     def prep_pi_column(self):

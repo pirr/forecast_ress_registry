@@ -132,7 +132,7 @@ class ShpRegistry:
                         arg = str(int(arg))
                     except ValueError:
                         arg = str(arg)
-                strs.append(arg)
+                strs.append(arg.lower())
             return ','.join(strs) if strs else np.nan
         np_concat = np.vectorize(concat)
         return np_concat(*args)

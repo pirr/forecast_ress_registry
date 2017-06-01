@@ -21,11 +21,21 @@ class MergedXlsShpDf:
         # return merged[(~merged.duplicated('N', )) | (merged['N'].isnull())]
         return merged
 
-
-    def paste_xy_for_none_shp_obj(self):
+    def paste_xy_for_none_shp_obj(self, poly_to_point=False):
         self.df.loc[self.df['_geom_type_'] == 'POINT', 'lon'] = \
             self.df.loc[self.df['_geom_type_'] == 'POINT', '_wkt_'].apply(lambda wkt: re.findall(r'[0-9.]+', wkt)[0])
         self.df.loc[self.df['_geom_type_'] == 'POINT', 'lat'] = \
             self.df.loc[self.df['_geom_type_'] == 'POINT', '_wkt_'].apply(lambda wkt: re.findall(r'[0-9.]+', wkt)[1])
         self.df.loc[
                 (~pd.isnull(self.df['lon']) & pd.isnull(self.df['_geom_type_'])), '_geom_type_'] = 'POINT'
+
+        if poly_to_point:
+            print '!!!POLY TO POINT ON!!!'
+            self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), 'lon'] = \
+                self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), '_geometry_'].apply(
+                    lambda geom: re.findall(r'[0-9.]+', geom.Centroid().ExportToWkt())[0])
+            self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), 'lat'] = \
+                self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), '_geometry_'].apply(
+                    lambda geom: re.findall(r'[0-9.]+', geom.Centroid().ExportToWkt())[1])
+
+            self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), '_geom_type_'] = 'POINT'

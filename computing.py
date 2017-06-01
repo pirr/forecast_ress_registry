@@ -18,51 +18,71 @@ from fuzzywuzzy import fuzz
 from sklearn.neighbors import DistanceMetric
 from multiprocessing import Pool
 from collections import Counter
+import pymorphy2
+
 
 import sys; sys.path.insert(0, '/Library/Frameworks/GDAL.framework/Versions/2.1/Python/2.7/site-packages')
 from osgeo import ogr
 
 
 class GroupComputing:
-    exclude = re.compile('[%s]' % string.punctuation)
-    name_pattern = pd.read_csv(
-        u'dict//pattern_for_replace.csv', sep=';', encoding='cp1251').fillna('')
+
+
 
     def __init__(self, df, **kwargs):
         self.df = df
         self.processes = kwargs.get('processes', 4)
         self.err_coord = kwargs.get('err_coord', False)
-        self.group_num = self.get_last_group_num
         self.lon_field = kwargs.get('lon_field', 'lon')
         self.lat_field = kwargs.get('lat_field', 'lat')
         self.min_dist = kwargs.get('min_dist', 0.)
         self.max_dist = kwargs.get('max_dist', 5000.)
         self.err_dist = kwargs.get('err_dist', 50000.)
         self.geometry_field = kwargs.get('geometry', '_geometry_')
-        self.df[self.lon_field] = self.df[self.lon_field].astype(float)
-        self.df[self.lat_field] = self.df[self.lat_field].astype(float)
-        self.df['analysis_name'] = self.df['name_obj'].str.lower()
-        self.__clear_analysis_names()
-        self.point_indxs = self.__get_point_indxs
-        self.computed_point_matrix = self.get_compute_point_matrix
         self.buffer_dist = kwargs.get('buffer_dist', 1)
         self.name_ratio = kwargs.get('name_ratio', 90)
         self.dist_penalty_coef = float(kwargs.get('dist_penalty_coef', 100))
         self.max_similar_coef = float(kwargs.get('max_similar_coef', 0.35))
         self.coeff_for_diff_doc_type = float(kwargs.get('coeff_for_diff_doc_type', 1.3))
-
+        self.group_num = self.get_last_group_num
+        self.df[self.lon_field] = self.df[self.lon_field].astype(float)
+        self.df[self.lat_field] = self.df[self.lat_field].astype(float)
+        self.point_indxs = self.__get_point_indxs
+        self.computed_point_matrix = self.get_compute_point_matrix
+        self.df['analysis_name'] = self.__get_analysis_name()
+        self.__clear_analysis_names()
         # pd.DataFrame(self.get_word_duplicates(count=2)).to_csv('data/duplicates.csv', sep=';', encoding='cp1251')
-        self.df['group_pi'] = self.df['isnedra_pi'].str.lower().str.strip()
+        self.df['isnedra_pi'] = self.df['isnedra_pi'].str.lower().str.strip()
         self.df['norm_pi'] = self.df['norm_pi'].str.lower().str.strip()
         # self.name_score_matrix = self.get_name_score_matrix()
 
+    def __get_analysis_name(self):
+        def catch_err_str(s):
+            try:
+                s = s.lower()
+            except AttributeError as e:
+                s = unicode(str(s), 'utf-8')
+            return s
+
+        return self.df['name_obj'].apply(lambda name: catch_err_str(name))
+
     def __clear_analysis_names(self):
-        self.df['analysis_name'] = self.df[
-                'analysis_name'].str.replace(ur'{}'.format(self.exclude), u' ', flags=re.UNICODE)
-        for p in self.name_pattern.as_matrix():
+        name_pattern = pd.read_csv(
+            u'dict//pattern_for_replace.csv', sep=';', encoding='cp1251').fillna('')
+        morph = pymorphy2.MorphAnalyzer()
+
+        def normalize_words(words_str):
+            norm_word_list = [morph.parse(w)[0].normal_form for w in words_str.split(' ')]
+            return ' '.join(norm_word_list)
+        self.df['analysis_name'] = self.df['analysis_name'].apply(lambda name: normalize_words(name))
+        for p in name_pattern.as_matrix():
             self.df['analysis_name'] = self.df[
                 'analysis_name'].str.replace(ur'{}'.format(p[0]), p[1], flags=re.UNICODE)
             self.df['analysis_name'] = self.df['analysis_name'].str.strip()
+        self.df['analysis_name'] = self.df[
+                'analysis_name'].str.replace(r'[%s]' % string.punctuation, ' ', flags=re.UNICODE)
+        self.df['analysis_name'] = self.df[
+            'analysis_name'].str.replace(r'\s\s+', ' ', flags=re.UNICODE).str.strip()
 
     def get_word_duplicates(self, count=3):
         words = []
@@ -93,7 +113,7 @@ class GroupComputing:
         return D * 6372795.
 
     @property
-    def get_lower_dist_groups(self):
+    def get_points_lower_dist_groups(self):
         computed_lower_dist = np.where(self.computed_point_matrix <= self.min_dist,
                                        self.computed_point_matrix, np.nan)
         G = self.get_groups_graph(np.argwhere(~np.isnan(computed_lower_dist)))
@@ -143,7 +163,7 @@ class GroupComputing:
     @property
     def get_attribute_groups(self):
         attrs_rows = izip(self.df.index.values.tolist(),
-                          self.df[['analysis_name', 'group_pi', 'norm_pi']].values.tolist())
+                          self.df[['analysis_name', 'isnedra_pi', 'norm_pi']].values.tolist())
         combo = combinations(attrs_rows, r=2)
         p = Pool(self.processes)
         name_ratio = self.name_ratio
@@ -152,43 +172,47 @@ class GroupComputing:
         p.join()
         groups = [g for g in groups if g is not None]
         G = self.get_groups_graph(np.array(groups))
+        indxs_set = set()
+        cliques = []
+        for clique in list(nx.find_cliques(G))[::-1]:
+            clique = set(clique) - indxs_set
+            if len(clique) > 1:
+                cliques.append(clique)
+                indxs_set = indxs_set | clique
+        #         self.df.loc[list(clique), 'N_objectX'] = i
+        #         i += 1
+        # writer = pd.ExcelWriter('data/analysis_name-pi-hrouping.xls')
+        # self.df.to_excel(writer, 'group')
+        # writer.save()
+        # writer.close()
+        # stop
         # for comp in nx.connected_components(G):
         #     avg_weight = []
         # G = self.get_groups_graph(np.array(groups))
         # groups_df = pd.DataFrame(groups)
         # groups_df.to_csv('data/name_ratio.csv')
 
-        return nx.connected_components(G)
+        return cliques
+        # return nx.connected_components(G)
 
-    @property
-    def get_polygon_by_wkt_groups(self):
-        polygons_df = self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']),
-                                  ['_geometry_', '_wkt_']]
-        indxs = polygons_df.index.values.tolist()
-        polygons_df = izip(indxs, polygons_df.to_dict(orient='records'))
-        polygons_prod = combinations(polygons_df, r=2)
+    def get_graph_by_func(self, df, func, *args):
+        indxs = df.index.values.tolist()
+        indxs_attrs = izip(indxs, df.to_dict(orient='records'))
+        combos_attrs = combinations(indxs_attrs, r=2)
         p = Pool(self.processes)
-        groups = p.map(_compare_polygons_wkt, polygons_prod)
+        groups = p.map(partial(func, *args), combos_attrs)
         p.close()
         p.join()
         groups = [g for g in groups if g is not None]
         G = self.get_groups_graph(np.array(groups))
-        return nx.connected_components(G)
-
-    @property
-    def get_polygon_iters_witin_groups(self):
-        polygons_df = self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']),
-                                  ['_geometry_', '_wkt_']]
-        indxs = polygons_df.index.values.tolist()
-        polygons_df = izip(indxs, polygons_df.to_dict(orient='records'))
-        polygons_prod = combinations(polygons_df, r=2)
-        p = Pool(self.processes)
-        groups = p.map(_compare_polygons_inter_within, polygons_prod)
-        p.close()
-        p.join()
-        groups = [g for g in groups if g is not None]
-        G = self.get_groups_graph(np.array(groups))
-        return nx.connected_components(G)
+        indxs_set = set()
+        cliques = []
+        for clique in list(nx.find_cliques(G))[::-1]:
+            clique = set(clique) - indxs_set
+            if len(clique) > 1:
+                cliques.append(clique)
+                indxs_set = indxs_set | clique
+        return cliques
 
     @property
     def compute_polygon_point_groups(self):
@@ -202,7 +226,7 @@ class GroupComputing:
             for poly in polygons.iteritems():
                 if point.Within(poly[1]):
                     groups.append([point_row[0], poly[0]])
-                elif point.Distance(poly[1]) <= 0.01:
+                elif point.Distance(poly[1]) <= 0.09:
                     groups.append([point_row[0], poly[0]])
         G = self.get_groups_graph(np.array(groups))
         return nx.connected_components(G)
@@ -236,6 +260,9 @@ class GroupComputing:
                 merge_gr = gr_1 & gr_2
                 if len(merge_gr) > 1:
                     merge_groups.append(merge_gr)
+                    if 1274 in merge_gr:
+                        print gr_1, gr_2
+                        break
         return merge_groups
 
     @staticmethod
@@ -245,33 +272,35 @@ class GroupComputing:
             merged_list.extend(l)
         return merged_list
 
-    def get_full_groups(self, err_coord=False):
-        print 'creating attribute groups'
-        attr_groups = list(self.get_attribute_groups)
+    def get_full_groups(self):
+        # print 'creating attribute groups'
+        # attr_groups = list(self.get_attribute_groups)
         print 'creating similar point groups'
         similar_point_groups = list(self.get_similar_point_groups())
-        print 'creating polygon groups'
-        polygon_groups = self.get_merged_groups(self.get_polygon_iters_witin_groups, attr_groups)
-        print 'creating lower distance groups'
-        lower_dist_groups = self.get_lower_dist_groups
-        print 'creating polygon by wkt groups'
-        polygon_by_wkt_groups = list(self.get_polygon_by_wkt_groups)
-        print 'creating points within polygons groups'
-        polygon_point_groups = self.get_merged_groups(self.compute_polygon_point_groups, attr_groups)
+        # print 'creating polygon groups'
+        # polygons_df = self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']),
+        #                           ['_geometry_', '_wkt_', 'analysis_name', 'isnedra_pi', 'norm_pi']]
+        # polygon_inters_within_groups = list(self.get_graph_by_func(polygons_df, _compare_polygons_inter_within))
+        # polygon_inters_within_groups_attrs = self.get_merged_groups(polygon_inters_within_groups, attr_groups)
+        print 'creating points lower distance groups'
+        lower_dist_groups = self.get_points_lower_dist_groups
+        # print 'creating polygon by wkt groups'
+        # polygon_by_wkt_groups = self.get_graph_by_func(polygons_df, _compare_polygons_wkt)
+        # print 'creating points within polygons groups'
+        # polygon_point_groups = self.get_merged_groups(self.compute_polygon_point_groups, attr_groups)
+        print 'process set grouping..'
         return self.get_merged_lists(
-                                     # between_dist_groups,
-                                     # between_err_coord_dist_groups,
                                      similar_point_groups,
-                                     polygon_groups,
+                                     # polygon_inters_within_groups_attrs,
                                      lower_dist_groups,
-                                     polygon_by_wkt_groups,
-                                     polygon_point_groups
+                                     # polygon_by_wkt_groups,
+                                     # polygon_point_groups
                                      )
 
-    def set_groups(self, err_coord=False):
+    def set_groups(self):
         start = datetime.now()
         print 'start grouping'
-        groups = self.get_full_groups(err_coord=err_coord)
+        groups = self.get_full_groups()
         for group in groups:
             group = list(group)
             group_num = self.df.loc[group, 'N_objectX'].min(skipna=True)
@@ -282,12 +311,13 @@ class GroupComputing:
                 n_objs = self.df.loc[group, 'N_objectX'].dropna().unique()
                 self.df.loc[self.df['N_objectX'].isin(n_objs), 'N_objectX'] = group_num
             self.df.loc[group, 'N_objectX'] = group_num
+
         print 'end grouping', datetime.now() - start
 
     def get_name_similar_ratio(self, names_list):
         names_combo = combinations(names_list, r=2)
         p = Pool(self.processes)
-        names_similar_ratio = np.array(p.map(_fuzz_partial_ratio, names_combo))
+        names_similar_ratio = np.array(p.map(_fuzz_similar_ratio, names_combo))
         p.close()
         p.join()
         return names_similar_ratio
@@ -303,31 +333,28 @@ class GroupComputing:
         return np.array(doc_types_ratio)
 
     def get_similar_point_groups(self):
-
         df_points = self.df[self.df['_geom_type_'] == 'POINT']
-
         name_similar_ratio = self.get_name_similar_ratio(df_points['analysis_name'].values.tolist())
         name_similar_ratio = name_similar_ratio.astype(float)
+
         dist_list = self.computed_point_matrix.ravel()
         dist_list = dist_list[~np.isnan(dist_list)]
-
-        # _D = (dist_list + (self.dist_penalty_coef * (self.name_ratio-name_similar_ratio))) / self.max_dist
-        # _R = (100. - name_similar_ratio) / 100.
-        # similar_coeff = _D * _R
         doc_types_ratio = self.get_doc_type_ratio(df_points['doc_type'].values.tolist(), self.coeff_for_diff_doc_type)
+
         dist_penalty = self.dist_penalty_coef * (self.name_ratio - name_similar_ratio)
         similar_coeff = ((dist_list + dist_penalty) / self.max_dist ) - doc_types_ratio
-
-        group_pi_equal = self.get_group_pi_equal(df_points[['group_pi', 'norm_pi']].values.tolist())
+        group_pi_equal = self.get_group_pi_equal(df_points[['isnedra_pi', 'norm_pi']].values.tolist())
         indxs_combo = np.array(list(combinations(self.point_indxs, r=2)))
         similar_couple = indxs_combo[(similar_coeff <= self.max_similar_coef) & (group_pi_equal==True)]
-
-        ch_similar_coeff = similar_coeff[(similar_coeff <= self.max_similar_coef) & (group_pi_equal==True)]
-        poss = [{tuple(couple): coef} for couple, coef in izip(indxs_combo, similar_coeff)]
         G = self.get_groups_graph(similar_couple)
-        # nx.draw(G, pos=poss)
-
         return nx.connected_components(G)
+
+    def get_similar_polygon_groups(self):
+        df_polygons = self.df[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON'])]
+        name_similar_ratio = self.get_name_similar_ratio(df_polygons['analysis_name'].values.tolist())
+        name_similar_ratio = name_similar_ratio.astype(float)
+
+        polygon_combs = combinations(df_polygons['_wkt_', '_geometry_'], r=2)
 
 
 def _fuzz_part_ratio(ratio, names):
@@ -337,16 +364,61 @@ def _fuzz_part_ratio(ratio, names):
         return names[0][0], names[1][0]
 
 
+def _compare_polygons_inter_within_2(polygons):
+    poly_1 = polygons[0][1]
+    poly_2 = polygons[1][1]
+
+    geometry_similar = 0
+
+    if poly_1['_wkt_'] == poly_2['_wkt_']:
+        geometry_similar = 1
+    elif poly_1['_geometry_'].Within(poly_2['_geometry_']) or poly_2['_geometry_'].Within(poly_1['_geometry_']):
+        geometry_similar = 0.7
+    elif poly_1['_geometry_'].Intersection(poly_2['_geometry_']):
+        geometry_similar = 0.5
+    elif poly_1['_geometry_'].Distance(poly_2['_geometry_']) <= 0.01:
+        geometry_similar = 0.3
+
+    return geometry_similar
+
+
 def _compare_polygons_inter_within(polygons):
     poly_1 = polygons[0][1]
     poly_2 = polygons[1][1]
     if any([
-        poly_1['_geometry_'].Intersection(poly_2['_geometry_']),
+        poly_1['_geometry_'].Intersect(poly_2['_geometry_']),
         poly_1['_geometry_'].Within(poly_2['_geometry_']),
         poly_2['_geometry_'].Within(poly_1['_geometry_'])
     ]):
         return polygons[0][0], polygons[1][0]
 
+def _compare_name_pi(name_ratio, objs):
+    obj1 = objs[0][1]
+    obj2 = objs[1][1]
+
+    if len(obj1['analysis_name'].split(' ')) + len(obj2['analysis_name'].split(' ')) <= 2:
+        pr = fuzz.ratio(obj1['analysis_name'], obj2['analysis_name'])
+    elif obj1['analysis_name'].isdigit() or obj2['analysis_name'].isdigit():
+        pr = fuzz.ratio(obj1['analysis_name'], obj2['analysis_name'])
+    else:
+        pr = fuzz.partial_ratio(obj1['analysis_name'], obj2['analysis_name'])
+
+    if pr >= name_ratio and any([(obj1['isnedra_pi'] == obj2['isnedra_pi']),
+                                 (obj1['norm_pi'] == obj2['norm_pi'])]):
+        return True
+
+    return False
+
+def _compare_pi(objs):
+    gr_pi1 = objs[0][1]['isnedra_pi']
+    gr_pi2 = objs[1][1]['isnedra_pi']
+    n_pi1 = objs[0][1]['norm_pi']
+    n_pi2 = objs[1][1]['norm_pi']
+
+    if any([(gr_pi1 == gr_pi2), (n_pi1 == n_pi2)]):
+        return True
+
+    return False
 
 def _get_attrs_ratio(name_ratio, attrs):
     name_1 = attrs[0][1][0]
@@ -357,6 +429,8 @@ def _get_attrs_ratio(name_ratio, attrs):
     n_pi2 = attrs[1][1][2]
 
     if len(name_1.split(' ')) + len(name_2.split(' ')) <= 2:
+        pr = fuzz.ratio(name_1, name_2)
+    elif name_1.isdigit() or name_2.isdigit():
         pr = fuzz.ratio(name_1, name_2)
     else:
         pr = fuzz.partial_ratio(name_1, name_2)
@@ -372,8 +446,13 @@ def _compare_polygons_wkt(polygons):
         return polygons[0][0], polygons[1][0]
 
 
-def _fuzz_partial_ratio(names):
-    ratio = fuzz.partial_ratio(*names)
+def _fuzz_similar_ratio(names):
+    name1, name2 = names
+    if len(name1.split(' ')) + len(name2.split(' ')) <= 2:
+        ratio = fuzz.ratio(name1, name2)
+    else:
+        ratio = fuzz.partial_ratio(name1, name2)
+
     return ratio
 
 def _group_pi_equal(group_pi_couple):
