@@ -6,6 +6,7 @@ Created on Wed Feb 15 11:11:16 2017
 @author: aleksejsmaga
 """
 
+import os
 import pandas as pd
 import numpy as np
 from shpregistry import ShpRegistry
@@ -92,8 +93,20 @@ df_shp_registry = df_shp_registry[['point_xy', 'geom_id', '_prj_', '_geometry_',
 # df_shp_registry['nomstr']
 # df_shp_registry['cnigri_id']
 # df_shp_registry['N_reestr_s']
-file_path = u'data//kr-kr//'
-df = pd.read_excel(file_path + 'reestr_KRK.xls', skiprows=1)
+
+poly_to_point = True
+subj = u'alt-kr'
+reestr_file = u'reestr_ALK-3005.xls'
+file_path = os.path.join(u'data', subj)
+results_dir = os.path.join(file_path, 'group_results')
+
+if not os.path.exists(file_path):
+    raise Exception('No file {}'.format(file_path))
+
+if not os.path.exists(results_dir):
+    os.makedirs(results_dir)
+
+df = pd.read_excel(os.path.join(file_path, reestr_file), skiprows=1)
 registry_fmt = RegistryFormatter(df, registry_cols_dict=REGISTRY_COLUMNS)
 registry_fmt.format(grand_taxons=False)
 xls_registry = registry_fmt.registry
@@ -101,8 +114,9 @@ xls_registry = registry_fmt.registry
 xls_registry = xls_registry[xls_registry['actual'] == u'А']
 
 merged_df = MergedXlsShpDf(xls_registry, df_shp_registry)
-merged_df.paste_xy_for_none_shp_obj(poly_to_point=True)
-mdf = merged_df.df
+
+merged_df.paste_xy_for_none_shp_obj()
+mdf = merged_df.df[:100]
 
 # mdf.to_pickle('full_ak-registry.pk')
 
@@ -165,10 +179,15 @@ best = {'max_similar_coef': 0.75,
 # print 'best:'
 # print best
 #
+best['poly_to_point'] = poly_to_point
 group_comp = GroupComputing(mdf, **best)
 group_comp.set_groups()
 
-csv_file_path = file_path + 'group_results//' + 'krk-' + time.strftime("%m%d-%H_%M_%S") + '.csv'
+if poly_to_point:
+    point_pref = '-points-'
+else:
+    point_pref = '-'
+csv_file_path = os.path.join(results_dir, subj + point_pref + time.strftime("%m%d-%H_%M_%S") + '.csv')
 
 group_comp.df[['N', 'N_objectX', 'doc_type',
                'adm_distr', 'list_200', 'name_obj',

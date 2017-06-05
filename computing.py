@@ -44,6 +44,10 @@ class GroupComputing:
         self.dist_penalty_coef = float(kwargs.get('dist_penalty_coef', 100))
         self.max_similar_coef = float(kwargs.get('max_similar_coef', 0.35))
         self.coeff_for_diff_doc_type = float(kwargs.get('coeff_for_diff_doc_type', 1.3))
+        self.poly_to_point = kwargs.get('poly_to_point', False)
+        if self.poly_to_point:
+            print '!!!POLY TO POINT ON!!!'
+            self.__set_poly_centroids()
         self.group_num = self.get_last_group_num
         self.df[self.lon_field] = self.df[self.lon_field].astype(float)
         self.df[self.lat_field] = self.df[self.lat_field].astype(float)
@@ -83,6 +87,16 @@ class GroupComputing:
                 'analysis_name'].str.replace(r'[%s]' % string.punctuation, ' ', flags=re.UNICODE)
         self.df['analysis_name'] = self.df[
             'analysis_name'].str.replace(r'\s\s+', ' ', flags=re.UNICODE).str.strip()
+
+    def __set_poly_centroids(self):
+        self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), 'lon'] = \
+            self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), '_geometry_'].apply(
+                lambda geom: re.findall(r'[0-9.]+', geom.Centroid().ExportToWkt())[0])
+        self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lat']), 'lat'] = \
+            self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lat']), '_geometry_'].apply(
+                lambda geom: re.findall(r'[0-9.]+', geom.Centroid().ExportToWkt())[1])
+
+        self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']), '_geom_type_'] = 'POINT'
 
     def get_word_duplicates(self, count=3):
         words = []
@@ -273,28 +287,35 @@ class GroupComputing:
         return merged_list
 
     def get_full_groups(self):
-        # print 'creating attribute groups'
-        # attr_groups = list(self.get_attribute_groups)
+        if not self.poly_to_point:
+            print 'creating attribute groups'
+            attr_groups = list(self.get_attribute_groups)
+            print 'creating polygon groups'
+            polygons_df = self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']),
+                                      ['_geometry_', '_wkt_', 'analysis_name', 'isnedra_pi', 'norm_pi']]
+            polygon_inters_within_groups = list(self.get_graph_by_func(polygons_df, _compare_polygons_inter_within))
+            polygon_inters_within_groups_attrs = self.get_merged_groups(polygon_inters_within_groups, attr_groups)
+            print 'creating polygon by wkt groups'
+            polygon_by_wkt_groups = self.get_graph_by_func(polygons_df, _compare_polygons_wkt)
+            print 'creating points within polygons groups'
+            polygon_point_groups = self.get_merged_groups(self.compute_polygon_point_groups, attr_groups)
+
+        else:
+            polygon_inters_within_groups_attrs = []
+            polygon_by_wkt_groups = []
+            polygon_point_groups = []
+
         print 'creating similar point groups'
         similar_point_groups = list(self.get_similar_point_groups())
-        # print 'creating polygon groups'
-        # polygons_df = self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']),
-        #                           ['_geometry_', '_wkt_', 'analysis_name', 'isnedra_pi', 'norm_pi']]
-        # polygon_inters_within_groups = list(self.get_graph_by_func(polygons_df, _compare_polygons_inter_within))
-        # polygon_inters_within_groups_attrs = self.get_merged_groups(polygon_inters_within_groups, attr_groups)
         print 'creating points lower distance groups'
         lower_dist_groups = self.get_points_lower_dist_groups
-        # print 'creating polygon by wkt groups'
-        # polygon_by_wkt_groups = self.get_graph_by_func(polygons_df, _compare_polygons_wkt)
-        # print 'creating points within polygons groups'
-        # polygon_point_groups = self.get_merged_groups(self.compute_polygon_point_groups, attr_groups)
         print 'process set grouping..'
         return self.get_merged_lists(
                                      similar_point_groups,
-                                     # polygon_inters_within_groups_attrs,
+                                     polygon_inters_within_groups_attrs,
                                      lower_dist_groups,
-                                     # polygon_by_wkt_groups,
-                                     # polygon_point_groups
+                                     polygon_by_wkt_groups,
+                                     polygon_point_groups
                                      )
 
     def set_groups(self):
