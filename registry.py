@@ -3,6 +3,7 @@
 
 """
 
+import sys
 import re
 import numpy as np
 import pandas as pd
@@ -104,10 +105,13 @@ class RegistryFormatter:
     def check_errors(self):
         if self.errors:
             errs_strs = []
+            print('\n')
+            print('{0}REGISTRY ERRORS{0}'.format('='*15) )
             for k, v in self.errors.items():
                 err_str = u'{}: {}'.format(k, ','.join(v))
                 print(err_str)
-            raise RegistryExc('!OOPS!')
+            print('\n')
+            sys.exit(0)
 
     # удаление переносов и других непробельных символов в названии колонок
     # реестра
