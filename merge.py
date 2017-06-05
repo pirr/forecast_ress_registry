@@ -34,8 +34,8 @@ class MergedXlsShpDf:
             self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), 'lon'] = \
                 self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), '_geometry_'].apply(
                     lambda geom: re.findall(r'[0-9.]+', geom.Centroid().ExportToWkt())[0])
-            self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), 'lat'] = \
-                self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), '_geometry_'].apply(
+            self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lat']), 'lat'] = \
+                self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lat']), '_geometry_'].apply(
                     lambda geom: re.findall(r'[0-9.]+', geom.Centroid().ExportToWkt())[1])
 
-            self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), '_geom_type_'] = 'POINT'
+            self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']), '_geom_type_'] = 'POINT'
