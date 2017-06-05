@@ -103,11 +103,11 @@ class RegistryFormatter:
     # проверка наличия ошибок
     def check_errors(self):
         if self.errors:
-            # for k, v in self.errors.items():
-            #     print k, ':', ','.join(v)
-            self.errors = '\n'.join(k + ':' + ','.join(v) for k, v in self.errors.items())
-            # print self.errors
-            raise RegistryExc(self.errors)
+            errs_strs = []
+            for k, v in self.errors.items():
+                err_str = u'{}: {}'.format(k, ','.join(v))
+                print(err_str)
+            raise RegistryExc('!OOPS!')
 
     # удаление переносов и других непробельных символов в названии колонок
     # реестра
