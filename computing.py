@@ -274,9 +274,6 @@ class GroupComputing:
                 merge_gr = gr_1 & gr_2
                 if len(merge_gr) > 1:
                     merge_groups.append(merge_gr)
-                    if 1274 in merge_gr:
-                        print gr_1, gr_2
-                        break
         return merge_groups
 
     @staticmethod
