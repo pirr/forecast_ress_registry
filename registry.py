@@ -103,7 +103,10 @@ class RegistryFormatter:
     # проверка наличия ошибок
     def check_errors(self):
         if self.errors:
-            self.errors = '\n'.join(str(k) + ':' + str(v) for k,v in self.errors.items())
+            # for k, v in self.errors.items():
+            #     print k, ':', ','.join(v)
+            self.errors = '\n'.join(k + ':' + ','.join(v) for k, v in self.errors.items())
+            # print self.errors
             raise RegistryExc(self.errors)
 
     # удаление переносов и других непробельных символов в названии колонок
@@ -118,6 +121,7 @@ class RegistryFormatter:
     def check_columns(self):
         none_cols = [c for c in self.cols.keys()
                      if c not in self.registry.columns]
+
         if none_cols:
             self._append_errors(
                 u'В реестре отсутствуют колонки', ', '.join(none_cols))
