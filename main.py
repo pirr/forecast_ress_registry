@@ -70,179 +70,180 @@ def get_predict_scores(y_true, y_pred):
 
     return predict_scores
 
-shp_dir = ur'data//shps//'
-shp_registry = ShpRegistry(shp_dir=shp_dir)
-df_shp_registry = shp_registry.concat_df_shp(transform_prj=True)
+if __name__ == '__main__':
+  shp_dir = ur'data//shps//'
+  shp_registry = ShpRegistry(shp_dir=shp_dir)
+  df_shp_registry = shp_registry.concat_df_shp(transform_prj=True)
 
-df_shp_registry['point_xy'] = np.nan
-df_shp_registry['point_xy'] = df_shp_registry['point_xy'].astype(object)
-df_shp_registry = shp_registry.get_point_xy(df_shp_registry)
-df_shp_registry['geom_id'] = shp_registry.concat_df_column_ids(
-                                                               df_shp_registry['N_TKOORD'],
-                                                               df_shp_registry['NOM_PU'],
-                                                               df_shp_registry['priv'],
-                                                               df_shp_registry['ID_PRIV'],
-                                                               df_shp_registry['regid'],
-                                                               # df_shp_registry['nomstr'],
-                                                               # df_shp_registry['cnigri_id'],
-                                                               # df_shp_registry['N_reestr_s']
-                                                               )
+  df_shp_registry['point_xy'] = np.nan
+  df_shp_registry['point_xy'] = df_shp_registry['point_xy'].astype(object)
+  df_shp_registry = shp_registry.get_point_xy(df_shp_registry)
+  df_shp_registry['geom_id'] = shp_registry.concat_df_column_ids(
+                                                                 df_shp_registry['N_TKOORD'],
+                                                                 df_shp_registry['NOM_PU'],
+                                                                 df_shp_registry['priv'],
+                                                                 df_shp_registry['ID_PRIV'],
+                                                                 df_shp_registry['regid'],
+                                                                 # df_shp_registry['nomstr'],
+                                                                 # df_shp_registry['cnigri_id'],
+                                                                 # df_shp_registry['N_reestr_s']
+                                                                 )
 
-df_shp_registry = df_shp_registry[['point_xy', 'geom_id', '_prj_', '_geometry_', '_wkt_', '_geom_type_']]
-# df_shp_registry['N_TKOORD'],
-# df_shp_registry['nomstr']
-# df_shp_registry['cnigri_id']
-# df_shp_registry['N_reestr_s']
+  df_shp_registry = df_shp_registry[['point_xy', 'geom_id', '_prj_', '_geometry_', '_wkt_', '_geom_type_']]
+  # df_shp_registry['N_TKOORD'],
+  # df_shp_registry['nomstr']
+  # df_shp_registry['cnigri_id']
+  # df_shp_registry['N_reestr_s']
 
-poly_to_point = True
-subj = u'alt-kr'
-reestr_file = u'reestr_ALK-3005.xls'
-file_path = os.path.join(u'data', subj)
-results_dir = os.path.join(file_path, 'group_results')
+  poly_to_point = False
+  subj = u'irk'
+  reestr_file = u'reestr_IRK_fg.xls'
+  file_path = os.path.join(u'data', subj)
+  results_dir = os.path.join(file_path, 'group_results')
 
-if not os.path.exists(file_path):
-    raise Exception('No file {}'.format(file_path))
+  if not os.path.exists(file_path):
+      raise Exception('No file {}'.format(file_path))
 
-if not os.path.exists(results_dir):
-    os.makedirs(results_dir)
+  if not os.path.exists(results_dir):
+      os.makedirs(results_dir)
 
-df = pd.read_excel(os.path.join(file_path, reestr_file), skiprows=1)
-registry_fmt = RegistryFormatter(df, registry_cols_dict=REGISTRY_COLUMNS)
-registry_fmt.format(grand_taxons=False)
-xls_registry = registry_fmt.registry
+  df = pd.read_excel(os.path.join(file_path, reestr_file), skiprows=1)
+  registry_fmt = RegistryFormatter(df, registry_cols_dict=REGISTRY_COLUMNS)
+  registry_fmt.format(grand_taxons=False)
+  xls_registry = registry_fmt.registry
 
-xls_registry = xls_registry[xls_registry['actual'] == u'А']
+  xls_registry = xls_registry[xls_registry['actual'] == u'А']
 
-merged_df = MergedXlsShpDf(xls_registry, df_shp_registry)
+  merged_df = MergedXlsShpDf(xls_registry, df_shp_registry)
 
-merged_df.paste_xy_for_none_shp_obj()
-mdf = merged_df.df[:100]
+  merged_df.paste_xy_for_none_shp_obj()
+  mdf = merged_df.df
 
-# mdf.to_pickle('full_ak-registry.pk')
+  # mdf.to_pickle('full_ak-registry.pk')
 
-merge_df_norm_coord = mdf[mdf['coord_checked'] == 'ok']
-merge_df_err_coord = mdf
+  merge_df_norm_coord = mdf[mdf['coord_checked'] == 'ok']
+  merge_df_err_coord = mdf
 
-# {'max_similar_coef': 0.4, 'name_ratio': 69.0, 'dist_penalty_coef': 190.0}
-# {'max_similar_coef': 0.28, 'name_ratio': 86.0, 'dist_penalty_coef': 120.0}
-# {'max_similar_coef': 0.43, 'name_ratio': 53.0, 'dist_penalty_coef': 110.0}
-# {'max_similar_coef': 0.2, 'name_ratio': 90, 'dist_penalty_coef': 200}
-# {'max_similar_coef': 0.39, 'name_ratio': 85.0, 'dist_penalty_coef': 130.0}
+  # {'max_similar_coef': 0.4, 'name_ratio': 69.0, 'dist_penalty_coef': 190.0}
+  # {'max_similar_coef': 0.28, 'name_ratio': 86.0, 'dist_penalty_coef': 120.0}
+  # {'max_similar_coef': 0.43, 'name_ratio': 53.0, 'dist_penalty_coef': 110.0}
+  # {'max_similar_coef': 0.2, 'name_ratio': 90, 'dist_penalty_coef': 200}
+  # {'max_similar_coef': 0.39, 'name_ratio': 85.0, 'dist_penalty_coef': 130.0}
 
-def foo(params):
+  def foo(params):
 
-    clf = GroupComputing(df=mdf, **params)
-    clf.set_groups()
-    m = clf.df[['N', 'N_obj']].sort_values('N')
-    copy_m = m.copy()
+      clf = GroupComputing(df=mdf, **params)
+      clf.set_groups()
+      m = clf.df[['N', 'N_obj']].sort_values('N')
+      copy_m = m.copy()
 
-    n_obj_dict = {}
-    obj_new_num = 0
-    for n_row, n_obj in m.as_matrix():
-        if pd.isnull(n_obj):
-            obj_num = obj_new_num
-            obj_new_num += 1
-        elif n_obj in n_obj_dict:
-            obj_num = n_obj_dict[n_obj]
-        else:
-            obj_num = obj_new_num
-            n_obj_dict[n_obj] = obj_new_num
-            obj_new_num += 1
-        copy_m.loc[copy_m['N'] == n_row, 'N_obj'] = obj_num
-
-
-    y_pred = copy_m['N_obj'].as_matrix().ravel()
-    y_true = pd.read_csv('data//y_kem.csv', header=None).as_matrix().ravel()
-
-    predict_scores = get_predict_scores(y_true, y_pred)
-    mean_scores = {k + '_mean': float(sum(v)) / float(len(v)) for k, v in predict_scores.items()}
-    print 'params', params
-    print 'mean score:', mean_scores['err_mean']
-
-    return {'loss': mean_scores['err_mean'], 'status': STATUS_OK}
+      n_obj_dict = {}
+      obj_new_num = 0
+      for n_row, n_obj in m.as_matrix():
+          if pd.isnull(n_obj):
+              obj_num = obj_new_num
+              obj_new_num += 1
+          elif n_obj in n_obj_dict:
+              obj_num = n_obj_dict[n_obj]
+          else:
+              obj_num = obj_new_num
+              n_obj_dict[n_obj] = obj_new_num
+              obj_new_num += 1
+          copy_m.loc[copy_m['N'] == n_row, 'N_obj'] = obj_num
 
 
-space4grouping = {
-    'dist_penalty_coef': hp.quniform('dist_penalty_coef', 100., 600., 10.),
-    'max_similar_coef': hp.quniform('max_similar_coef', 0.18, 0.5, 0.01),
-    'name_ratio': hp.quniform('name_ratio', 70, 95, 1),
-    'coeff_for_diff_doc_type': hp.quniform('coeff_for_diff_doc_type', 0.01, 0.2, 0.01),
-}
+      y_pred = copy_m['N_obj'].as_matrix().ravel()
+      y_true = pd.read_csv('data//y_kem.csv', header=None).as_matrix().ravel()
 
-best = {'max_similar_coef': 0.75,
-        'name_ratio': 92.0,
-        'dist_penalty_coef': 250.0,
-        'coeff_for_diff_doc_type': 0.3}
-# trials = Trials()
-# best = fmin(foo, space4grouping, algo=tpe.suggest, max_evals=100, trials=trials)
-#
-# print 'best:'
-# print best
-#
-best['poly_to_point'] = poly_to_point
-group_comp = GroupComputing(mdf, **best)
-group_comp.set_groups()
+      predict_scores = get_predict_scores(y_true, y_pred)
+      mean_scores = {k + '_mean': float(sum(v)) / float(len(v)) for k, v in predict_scores.items()}
+      print 'params', params
+      print 'mean score:', mean_scores['err_mean']
 
-if poly_to_point:
-    point_pref = '-points-'
-else:
-    point_pref = '-'
-csv_file_path = os.path.join(results_dir, subj + point_pref + time.strftime("%m%d-%H_%M_%S") + '.csv')
-
-group_comp.df[['N', 'N_objectX', 'doc_type',
-               'adm_distr', 'list_200', 'name_obj',
-               'analysis_name', 'isnedra_pi', 'norm_pi',
-               'lon', 'lat', '_geom_type_']].to_csv(csv_file_path, encoding='cp1251', sep='\t')
+      return {'loss': mean_scores['err_mean'], 'status': STATUS_OK}
 
 
-# writer = pd.ExcelWriter('data//3105-1-alk-full.xls')
-# group_comp.df.to_excel(writer, 'group')
-# writer.save()
-# writer.close()
-# m = group_comp.df[['N', 'N_obj']]
-# m.to_csv('data/2305-1-alk.csv', sep=';')
-# copy_m = m.copy()
+  space4grouping = {
+      'dist_penalty_coef': hp.quniform('dist_penalty_coef', 100., 600., 10.),
+      'max_similar_coef': hp.quniform('max_similar_coef', 0.18, 0.5, 0.01),
+      'name_ratio': hp.quniform('name_ratio', 70, 95, 1),
+      'coeff_for_diff_doc_type': hp.quniform('coeff_for_diff_doc_type', 0.01, 0.2, 0.01),
+  }
 
-# n_obj_dict = {}
-# obj_new_num = 0
-# for n_row, n_obj in m.as_matrix():
-#     if pd.isnull(n_obj):
-#         obj_num = obj_new_num
-#         obj_new_num += 1
-#     elif n_obj in n_obj_dict:
-#         obj_num = n_obj_dict[n_obj]
-#     else:
-#         obj_num = obj_new_num
-#         n_obj_dict[n_obj] = obj_new_num
-#         obj_new_num += 1
-#     copy_m.loc[copy_m['N'] == n_row, 'N_obj'] = obj_num
-#
-# y_pred = copy_m['N_obj'].as_matrix().ravel()
-# y_true = pd.read_csv('data//y_kem.csv', header=None).as_matrix().ravel()
-# predict_scores = get_predict_scores(y_true, y_pred)
-# mean_score = {k + '_mean': float(sum(v)) / float(len(v)) for k, v in predict_scores.items()}
-# err = sum(predict_scores['err'])
-# tp = sum(predict_scores['tp'])
-# print err, tp, (tp / (err + tp))
-# writer = pd.ExcelWriter('data//group_irk.xls')
-# group_comp.df.to_excel(writer, 'group')
-# writer.save()
-# writer.close()
-# copy_m.to_csv('data//pred_x.csv', sep=';')
+  best = {'max_similar_coef': 0.75,
+          'name_ratio': 92.0,
+          'dist_penalty_coef': 250.0,
+          'coeff_for_diff_doc_type': 0.3}
+  # trials = Trials()
+  # best = fmin(foo, space4grouping, algo=tpe.suggest, max_evals=100, trials=trials)
+  #
+  # print 'best:'
+  # print best
+  #
+  best['poly_to_point'] = poly_to_point
+  group_comp = GroupComputing(mdf, **best)
+  group_comp.set_groups()
 
-# print 'groups', group_comp_norm_coord.df
-# group_comp_norm_coord.get_analysis_name_matrix
+  if poly_to_point:
+      point_pref = '-points-'
+  else:
+      point_pref = '-'
+  csv_file_path = os.path.join(results_dir, subj + point_pref + time.strftime("%m%d-%H_%M_%S") + '.csv')
 
-# group_comp_norm_coord.set_group_for_lower_dist
+  group_comp.df[['N', 'N_objectX', 'doc_type',
+                 'adm_distr', 'list_200', 'name_obj',
+                 'analysis_name', 'isnedra_pi', 'norm_pi',
+                 'lon', 'lat', '_geom_type_']].to_csv(csv_file_path, encoding='cp1251', sep='\t')
 
-# a = group_comp_norm_coord.df['analysis_name']
-# print group_comp_norm_coord
-# group_comp_err_coord = GroupComputing(merge_df_err_coord, dist_group=group_comp_norm_coord.dist_group)
-# group_comp_err_coord.set_group_for_lower_dist
 
-# print(group_comp_err_coord.df)
-# pass
-# compute = GroupComputing(merged_df.df)
-# PM = compute.get_compute_point_matrix()
-# dist100_indxs = compute.get_lower_dist_true_indx(100)
-# dist15000_indxs = compute.get_between_dist_true_indx(100, 15000)
+  # writer = pd.ExcelWriter('data//3105-1-alk-full.xls')
+  # group_comp.df.to_excel(writer, 'group')
+  # writer.save()
+  # writer.close()
+  # m = group_comp.df[['N', 'N_obj']]
+  # m.to_csv('data/2305-1-alk.csv', sep=';')
+  # copy_m = m.copy()
+
+  # n_obj_dict = {}
+  # obj_new_num = 0
+  # for n_row, n_obj in m.as_matrix():
+  #     if pd.isnull(n_obj):
+  #         obj_num = obj_new_num
+  #         obj_new_num += 1
+  #     elif n_obj in n_obj_dict:
+  #         obj_num = n_obj_dict[n_obj]
+  #     else:
+  #         obj_num = obj_new_num
+  #         n_obj_dict[n_obj] = obj_new_num
+  #         obj_new_num += 1
+  #     copy_m.loc[copy_m['N'] == n_row, 'N_obj'] = obj_num
+  #
+  # y_pred = copy_m['N_obj'].as_matrix().ravel()
+  # y_true = pd.read_csv('data//y_kem.csv', header=None).as_matrix().ravel()
+  # predict_scores = get_predict_scores(y_true, y_pred)
+  # mean_score = {k + '_mean': float(sum(v)) / float(len(v)) for k, v in predict_scores.items()}
+  # err = sum(predict_scores['err'])
+  # tp = sum(predict_scores['tp'])
+  # print err, tp, (tp / (err + tp))
+  # writer = pd.ExcelWriter('data//group_irk.xls')
+  # group_comp.df.to_excel(writer, 'group')
+  # writer.save()
+  # writer.close()
+  # copy_m.to_csv('data//pred_x.csv', sep=';')
+
+  # print 'groups', group_comp_norm_coord.df
+  # group_comp_norm_coord.get_analysis_name_matrix
+
+  # group_comp_norm_coord.set_group_for_lower_dist
+
+  # a = group_comp_norm_coord.df['analysis_name']
+  # print group_comp_norm_coord
+  # group_comp_err_coord = GroupComputing(merge_df_err_coord, dist_group=group_comp_norm_coord.dist_group)
+  # group_comp_err_coord.set_group_for_lower_dist
+
+  # print(group_comp_err_coord.df)
+  # pass
+  # compute = GroupComputing(merged_df.df)
+  # PM = compute.get_compute_point_matrix()
+  # dist100_indxs = compute.get_lower_dist_true_indx(100)
+  # dist15000_indxs = compute.get_between_dist_true_indx(100, 15000)
