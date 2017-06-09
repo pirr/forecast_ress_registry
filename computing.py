@@ -35,8 +35,8 @@ class GroupComputing:
         self.err_coord = kwargs.get('err_coord', False)
         self.lon_field = kwargs.get('lon_field', 'lon')
         self.lat_field = kwargs.get('lat_field', 'lat')
-        self.min_dist = kwargs.get('min_dist', 0.)
-        self.max_dist = kwargs.get('max_dist', 5000.)
+        self.min_dist = float(kwargs.get('min_dist', 0.))
+        self.max_dist = float(kwargs.get('max_dist', 5000))
         self.err_dist = kwargs.get('err_dist', 50000.)
         self.geometry_field = kwargs.get('geometry', '_geometry_')
         self.buffer_dist = kwargs.get('buffer_dist', 1)
@@ -46,8 +46,10 @@ class GroupComputing:
         self.coeff_for_diff_doc_type = float(kwargs.get('coeff_for_diff_doc_type', 1.3))
         self.poly_to_point = kwargs.get('poly_to_point', False)
         if self.poly_to_point:
-            print '!!!POLY TO POINT ON!!!'
+            print('!!!POLY TO POINT ON!!!')
             self.__set_poly_centroids()
+        self.df['old_N_objectX'] = self.df['N_objectX']
+        # self.df['N_objectX'] = np.nan
         self.group_num = self.get_last_group_num
         self.df[self.lon_field] = self.df[self.lon_field].astype(float)
         self.df[self.lat_field] = self.df[self.lat_field].astype(float)
@@ -78,6 +80,7 @@ class GroupComputing:
         def normalize_words(words_str):
             norm_word_list = [morph.parse(w)[0].normal_form for w in words_str.split(' ')]
             return ' '.join(norm_word_list)
+
         self.df['analysis_name'] = self.df['analysis_name'].apply(lambda name: normalize_words(name))
         for p in name_pattern.as_matrix():
             self.df['analysis_name'] = self.df[
@@ -85,6 +88,7 @@ class GroupComputing:
             self.df['analysis_name'] = self.df['analysis_name'].str.strip()
         self.df['analysis_name'] = self.df[
                 'analysis_name'].str.replace(r'[%s]' % string.punctuation, ' ', flags=re.UNICODE)
+
         self.df['analysis_name'] = self.df[
             'analysis_name'].str.replace(r'\s\s+', ' ', flags=re.UNICODE).str.strip()
 
@@ -365,7 +369,17 @@ class GroupComputing:
         indxs_combo = np.array(list(combinations(self.point_indxs, r=2)))
         similar_couple = indxs_combo[(similar_coeff <= self.max_similar_coef) & (group_pi_equal==True)]
         G = self.get_groups_graph(similar_couple)
-        return nx.connected_components(G)
+
+        indxs_set = set()
+        cliques = []
+        for clique in list(nx.find_cliques(G))[::-1]:
+            clique = set(clique) - indxs_set
+            if len(clique) > 1:
+                cliques.append(clique)
+                indxs_set = indxs_set | clique
+        
+        # return nx.connected_components(G)
+        return cliques
 
     def get_similar_polygon_groups(self):
         df_polygons = self.df[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON'])]
@@ -410,22 +424,29 @@ def _compare_polygons_inter_within(polygons):
     ]):
         return polygons[0][0], polygons[1][0]
 
-def _compare_name_pi(name_ratio, objs):
-    obj1 = objs[0][1]
-    obj2 = objs[1][1]
+# def _compare_name_pi(name_ratio, objs):
+#     obj1 = objs[0][1]
+#     obj2 = objs[1][1]
 
-    if len(obj1['analysis_name'].split(' ')) + len(obj2['analysis_name'].split(' ')) <= 2:
-        pr = fuzz.ratio(obj1['analysis_name'], obj2['analysis_name'])
-    elif obj1['analysis_name'].isdigit() or obj2['analysis_name'].isdigit():
-        pr = fuzz.ratio(obj1['analysis_name'], obj2['analysis_name'])
-    else:
-        pr = fuzz.partial_ratio(obj1['analysis_name'], obj2['analysis_name'])
+#     if len(obj1['analysis_name']) < 6 or len(obj2['analysis_name']) < 6:
+#         pr = fuzz.ratio(name_1, name_2)
 
-    if pr >= name_ratio and any([(obj1['isnedra_pi'] == obj2['isnedra_pi']),
-                                 (obj1['norm_pi'] == obj2['norm_pi'])]):
-        return True
+#     elif obj1['analysis_name'] == u'без имя' or obj2['analysis_name'] == u'без имя':
+#         pr = (obj1['analysis_name'] == obj2['analysis_name']) * 70
 
-    return False
+#     elif len(obj1['analysis_name'].split(' ')) + len(obj2['analysis_name'].split(' ')) <= 2:
+#         pr = fuzz.ratio(obj1['analysis_name'], obj2['analysis_name'])
+    
+#     elif obj1['analysis_name'].isdigit() or obj2['analysis_name'].isdigit():
+#         pr = fuzz.ratio(obj1['analysis_name'], obj2['analysis_name'])
+#     else:
+#         pr = fuzz.partial_ratio(obj1['analysis_name'], obj2['analysis_name'])
+
+#     if pr >= name_ratio and any([(obj1['isnedra_pi'] == obj2['isnedra_pi']),
+#                                  (obj1['norm_pi'] == obj2['norm_pi'])]):
+#         return True
+
+#     return False
 
 def _compare_pi(objs):
     gr_pi1 = objs[0][1]['isnedra_pi']
@@ -446,14 +467,18 @@ def _get_attrs_ratio(name_ratio, attrs):
     n_pi1 = attrs[0][1][2]
     n_pi2 = attrs[1][1][2]
 
-    if len(name_1.split(' ')) + len(name_2.split(' ')) <= 2:
-        pr = fuzz.ratio(name_1, name_2)
-    elif name_1.isdigit() or name_2.isdigit():
-        pr = fuzz.ratio(name_1, name_2)
-    else:
-        pr = fuzz.partial_ratio(name_1, name_2)
+    # if len(name_1) < 7 or len(name_2) < 7:
+    #     pr = fuzz.ratio(name_1, name_2)
+    # elif name_1 == u'без имя' or name_2 == u'без имя':
+    #     pr = (name_1 == name_2) * 70
+    # elif len(name_1.split(' ')) + len(name_2.split(' ')) <= 2:
+    #     pr = fuzz.ratio(name_1, name_2)
+    # elif name_1.isdigit() or name_2.isdigit():
+    #     pr = fuzz.ratio(name_1, name_2)
+    # else:
+    #     pr = fuzz.partial_ratio(name_1, name_2)
 
-    if pr >= name_ratio and any([(gr_pi1 == gr_pi2), (n_pi1 == n_pi2)]):
+    if _fuzz_similar_ratio([name_1, name_2]) >= name_ratio and any([(gr_pi1 == gr_pi2), (n_pi1 == n_pi2)]):
         return attrs[0][0], attrs[1][0]
 
 
@@ -466,12 +491,19 @@ def _compare_polygons_wkt(polygons):
 
 def _fuzz_similar_ratio(names):
     name1, name2 = names
-    if len(name1.split(' ')) + len(name2.split(' ')) <= 2:
+    len_word_ratio = len(set(name1.split(' ')) ^ set(name2.split(' ')))
+    if {name1, name2} & {u'без имя', u'без название'}:
+        ratio = (name1 == name2) * 80
+    elif len(name1) < 7 or len(name2) < 7:
+        ratio = fuzz.ratio(name1, name2)
+    elif len(name1.split(' ')) + len(name2.split(' ')) <= 2:
+        ratio = fuzz.ratio(name1, name2)
+    elif name1.isdigit() or name2.isdigit():
         ratio = fuzz.ratio(name1, name2)
     else:
         ratio = fuzz.partial_ratio(name1, name2)
 
-    return ratio
+    return ratio - len_word_ratio
 
 def _group_pi_equal(group_pi_couple):
     return any([(group_pi_couple[0][0] == group_pi_couple[1][0]),
