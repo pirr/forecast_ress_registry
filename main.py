@@ -18,8 +18,8 @@ import time
 
 
 poly_to_point = True
-subj = u'irk'
-reestr_file = u'reestr_IRK_fg.xls'
+subj = u'alt-kr'
+reestr_file = u'reestr_ALK-3005.xls'
 file_path = os.path.join(u'data', subj)
 results_dir = os.path.join(file_path, 'group_results')
 
@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
   group_comp.df[['N', 'old_N_objectX', 'N_objectX', 'doc_type',
                  'adm_distr', 'list_200', 'name_obj',
-                 'analysis_name', 'isnedra_pi', 'norm_pi',
+                 'analysis_name', 'len_analysis_name', 'isnedra_pi', 'norm_pi',
                  'lon', 'lat', '_geom_type_']].to_csv(csv_file_path, encoding='cp1251', sep='\t')
 
 

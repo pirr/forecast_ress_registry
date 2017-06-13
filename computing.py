@@ -21,13 +21,12 @@ from collections import Counter
 import pymorphy2
 
 
-import sys; sys.path.insert(0, '/Library/Frameworks/GDAL.framework/Versions/2.1/Python/2.7/site-packages')
+import sys; sys.path.insert(
+    0, '/Library/Frameworks/GDAL.framework/Versions/2.1/Python/2.7/site-packages')
 from osgeo import ogr
 
 
 class GroupComputing:
-
-
 
     def __init__(self, df, **kwargs):
         self.df = df
@@ -43,7 +42,8 @@ class GroupComputing:
         self.name_ratio = kwargs.get('name_ratio', 90)
         self.dist_penalty_coef = float(kwargs.get('dist_penalty_coef', 100))
         self.max_similar_coef = float(kwargs.get('max_similar_coef', 0.35))
-        self.coeff_for_diff_doc_type = float(kwargs.get('coeff_for_diff_doc_type', 1.3))
+        self.coeff_for_diff_doc_type = float(
+            kwargs.get('coeff_for_diff_doc_type', 1.3))
         self.poly_to_point = kwargs.get('poly_to_point', False)
         if self.poly_to_point:
             print('!!!POLY TO POINT ON!!!')
@@ -57,12 +57,35 @@ class GroupComputing:
         self.computed_point_matrix = self.get_compute_point_matrix
         self.df['analysis_name'] = self.__get_analysis_name()
         self.__clear_analysis_names()
-        # pd.DataFrame(self.get_word_duplicates(count=2)).to_csv('data/duplicates.csv', sep=';', encoding='cp1251')
+        # pd.DataFrame(self.get_word_duplicates(count=2)).to_csv('data/duplicates.csv',
+        # sep=';', encoding='cp1251')
         self.df['isnedra_pi'] = self.df['isnedra_pi'].str.lower().str.strip()
         self.df['norm_pi'] = self.df['norm_pi'].str.lower().str.strip()
         # self.name_score_matrix = self.get_name_score_matrix()
 
     def __get_analysis_name(self):
+        rome_arab = pd.read_csv(
+            u'dict//rome-arab.csv', sep=';', encoding='cp1251')
+        rome_arab['rome'] = rome_arab['rome'].str.lower()
+        rome_arab = rome_arab.values.tolist()[::-1]
+        kraki = [(u'p', u'р'),
+                    (u'a', u'а'),
+                    (u'b', u'в'),
+                    (u'y', u'у'),
+                    (u'e', u'е'),
+                    (u'k', u'к'),
+                    (u'm', u'м'),
+                    (u'h', u'н'),
+                    (u'o', u'о'),
+                    (u't', u'т'),
+                    ]
+
+        def rome_to_arab(word_str):
+            for r, a in rome_arab:
+                if r in word_str:
+                    word_str = word_str.replace(r, str(a))
+            return word_str
+
         def catch_err_str(s):
             try:
                 s = s.lower()
@@ -70,27 +93,64 @@ class GroupComputing:
                 s = unicode(str(s), 'utf-8')
             return s
 
-        return self.df['name_obj'].apply(lambda name: catch_err_str(name))
+        def fix_krakoybra(word_str):
+            w = catch_err_str(word_str)
+            if not w.isdigit():
+                for eng, ru in kraki:
+                    if eng in w:
+                        w = w.replace(eng, ru)
+            return w
+       
+
+        analysis_name = self.df['name_obj'].str.replace(ur'\w+\.', '', flags=re.UNICODE)
+        analysis_name = analysis_name.str.replace(r'[%s]' % string.punctuation.replace('.', ''), ' ', flags=re.UNICODE)
+
+        analysis_name = analysis_name.str.findall(ur'[\(\.N№0-9A-z\- ]*\s*[А-ЯA-Z][а-яА-яA-z\-]*\s*[\(\.\-N№0-9A-z ]*', flags=re.UNICODE)
+        analysis_name = analysis_name.apply(lambda name: ' '.join(name) if type(name) is list else name)
+        analysis_name.loc[analysis_name == ''] = self.df.loc[pd.isnull(analysis_name), 'name_obj']
+        self.df['len_analysis_name'] = analysis_name.apply(lambda name: len(catch_err_str(name)))
+        analysis_name.loc[self.df['len_analysis_name'] < 4] = self.df.loc[self.df['len_analysis_name'] < 4, 'name_obj']
+        
+        analysis_name = analysis_name.apply(lambda name: catch_err_str(name))
+        analysis_name = analysis_name.apply(lambda name: rome_to_arab(name))
+        analysis_name = analysis_name.apply(lambda name: fix_krakoybra(name))
+        
+        analysis_name = analysis_name.str.replace(ur'[N№n]', '', flags=re.UNICODE)
+
+        return analysis_name
 
     def __clear_analysis_names(self):
+        def catch_err_str(s):
+            try:
+                s = s.lower()
+            except AttributeError as e:
+                s = unicode(str(s), 'utf-8')
+            return s
+
         name_pattern = pd.read_csv(
             u'dict//pattern_for_replace.csv', sep=';', encoding='cp1251').fillna('')
+       
         morph = pymorphy2.MorphAnalyzer()
 
         def normalize_words(words_str):
             norm_word_list = [morph.parse(w)[0].normal_form for w in words_str.split(' ')]
             return ' '.join(norm_word_list)
 
+        # self.df['analysis_name'] = self.df[
+        #         'analysis_name'].str.replace(r'[%s]' % string.punctuation.replace('.', ''), ' ', flags=re.UNICODE)
+
         self.df['analysis_name'] = self.df['analysis_name'].apply(lambda name: normalize_words(name))
         for p in name_pattern.as_matrix():
             self.df['analysis_name'] = self.df[
                 'analysis_name'].str.replace(ur'{}'.format(p[0]), p[1], flags=re.UNICODE)
             self.df['analysis_name'] = self.df['analysis_name'].str.strip()
-        self.df['analysis_name'] = self.df[
-                'analysis_name'].str.replace(r'[%s]' % string.punctuation, ' ', flags=re.UNICODE)
 
         self.df['analysis_name'] = self.df[
             'analysis_name'].str.replace(r'\s\s+', ' ', flags=re.UNICODE).str.strip()
+
+        self.df.loc[self.df['analysis_name']=='', 'analysis_name'] = self.df.loc[self.df['analysis_name']=='', 'name_obj']
+        self.df['len_analysis_name'] = self.df['analysis_name'].apply(lambda name: len(catch_err_str(name)))
+        self.df.loc[self.df['len_analysis_name'] < 4, 'analysis_name'] = self.df.loc[self.df['len_analysis_name'] < 4, 'name_obj'].apply(lambda name: catch_err_str(name))
 
     def __set_poly_centroids(self):
         self.df.loc[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON']) & pd.isnull(self.df['lon']), 'lon'] = \
@@ -491,9 +551,11 @@ def _compare_polygons_wkt(polygons):
 
 def _fuzz_similar_ratio(names):
     name1, name2 = names
-    len_word_ratio = len(set(name1.split(' ')) ^ set(name2.split(' ')))
+    name1_list = name1.split(' ')
+    name2_list = name2.split(' ')
+    len_word_ratio = len(set(name1_list) ^ set(name2_list))
     if {name1, name2} & {u'без имя', u'без название'}:
-        ratio = (name1 == name2) * 80
+        ratio = 80
     elif len(name1) < 7 or len(name2) < 7:
         ratio = fuzz.ratio(name1, name2)
     elif len(name1.split(' ')) + len(name2.split(' ')) <= 2:
@@ -501,9 +563,14 @@ def _fuzz_similar_ratio(names):
     elif name1.isdigit() or name2.isdigit():
         ratio = fuzz.ratio(name1, name2)
     else:
-        ratio = fuzz.partial_ratio(name1, name2)
+        ratio = fuzz.partial_ratio(name1, name2) - len_word_ratio
 
-    return ratio - len_word_ratio
+    digit_ratio = 0
+    dig_name1 = [w for w in name1_list if w.isdigit()]
+    dig_name2 = [w for w in name2_list if w.isdigit()]
+    digit_ratio = len(set(dig_name1) - set(dig_name2)) * 4
+    
+    return ratio - digit_ratio
 
 def _group_pi_equal(group_pi_couple):
     return any([(group_pi_couple[0][0] == group_pi_couple[1][0]),
