@@ -139,7 +139,7 @@ class GroupComputing:
         # self.df['analysis_name'] = self.df[
         #         'analysis_name'].str.replace(r'[%s]' % string.punctuation.replace('.', ''), ' ', flags=re.UNICODE)
 
-        self.df['analysis_name'] = self.df['analysis_name'].apply(lambda name: normalize_words(name))
+        # self.df['analysis_name'] = self.df['analysis_name'].apply(lambda name: normalize_words(name))
         for p in name_pattern.as_matrix():
             self.df['analysis_name'] = self.df[
                 'analysis_name'].str.replace(ur'{}'.format(p[0]), p[1], flags=re.UNICODE)
@@ -367,9 +367,9 @@ class GroupComputing:
             polygon_point_groups = []
 
         print 'creating similar point groups'
-        similar_point_groups = list(self.get_similar_point_groups())
-        print 'creating points lower distance groups'
-        lower_dist_groups = self.get_points_lower_dist_groups
+        similar_point_groups, lower_dist_groups = self.get_similar_point_groups()
+        # print 'creating points lower distance groups'
+        # lower_dist_groups = self.get_points_lower_dist_groups
         print 'process set grouping..'
         return self.get_merged_lists(
                                      similar_point_groups,
@@ -428,18 +428,33 @@ class GroupComputing:
         group_pi_equal = self.get_group_pi_equal(df_points[['isnedra_pi', 'norm_pi']].values.tolist())
         indxs_combo = np.array(list(combinations(self.point_indxs, r=2)))
         similar_couple = indxs_combo[(similar_coeff <= self.max_similar_coef) & (group_pi_equal==True)]
-        G = self.get_groups_graph(similar_couple)
+        complex_couple = indxs_combo[similar_coeff <= -1]
+        G_sc = self.get_groups_graph(similar_couple)
+        G_cc = self.get_groups_graph(complex_couple)
 
         indxs_set = set()
         cliques = []
-        for clique in list(nx.find_cliques(G))[::-1]:
+        for clique in list(nx.find_cliques(G_sc))[::-1]:
             clique = set(clique) - indxs_set
             if len(clique) > 1:
                 cliques.append(clique)
                 indxs_set = indxs_set | clique
+
+        # complex = list(nx.connected_components(G_cc))
+        # for comp in complex:
+        #     comp_ = set(comp)
+        #     for i, clique in enumerate(cliques):
+        #         if clique & comp_:
+        #             cliques[i] = clique | comp_
+        #     complex.remove(comp)
         
+        # if complex:
+        #     for comp in complex:
+        #         cliques.append(set(comp))
+
+
         # return nx.connected_components(G)
-        return cliques
+        return cliques, list(nx.connected_components(G_cc))
 
     def get_similar_polygon_groups(self):
         df_polygons = self.df[self.df['_geom_type_'].isin(['POLYGON', 'MULTIPOLYGON'])]
@@ -554,8 +569,8 @@ def _fuzz_similar_ratio(names):
     name1_list = name1.split(' ')
     name2_list = name2.split(' ')
     len_word_ratio = len(set(name1_list) ^ set(name2_list))
-    if {name1, name2} & {u'без имя', u'без название'}:
-        ratio = 80
+    if {name1, name2} & {u'без имя', u'без название', u'без названия', u'без имени'}:
+        ratio = (name1 == name2) * 80
     elif len(name1) < 7 or len(name2) < 7:
         ratio = fuzz.ratio(name1, name2)
     elif len(name1.split(' ')) + len(name2.split(' ')) <= 2:
@@ -565,10 +580,9 @@ def _fuzz_similar_ratio(names):
     else:
         ratio = fuzz.partial_ratio(name1, name2) - len_word_ratio
 
-    digit_ratio = 0
     dig_name1 = [w for w in name1_list if w.isdigit()]
     dig_name2 = [w for w in name2_list if w.isdigit()]
-    digit_ratio = len(set(dig_name1) - set(dig_name2)) * 4
+    digit_ratio = len(set(dig_name1) ^ set(dig_name2)) * 10
     
     return ratio - digit_ratio
 
